@@ -1,0 +1,16 @@
+from abc import ABC, abstractmethod
+from typing import Optional, List
+from .entity import Customer
+
+
+class ICustomerRepository(ABC):
+    @abstractmethod
+    def get(self, id: int) -> Optional[Customer]: ...
+    @abstractmethod
+    def find_by_name(self, name: str) -> Optional[Customer]: ...
+    @abstractmethod
+    def search(self, q: str) -> List[Customer]: ...
+    @abstractmethod
+    def save(self, customer: Customer) -> Customer: ...
+    @abstractmethod
+    def delete(self, id: int) -> None: ...

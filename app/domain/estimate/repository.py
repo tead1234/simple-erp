@@ -1,0 +1,16 @@
+from abc import ABC, abstractmethod
+from typing import Optional, List
+from .entity import Estimate
+
+
+class IEstimateRepository(ABC):
+    @abstractmethod
+    def get(self, id: int) -> Optional[Estimate]: ...
+    @abstractmethod
+    def list(self) -> List[Estimate]: ...
+    @abstractmethod
+    def save(self, estimate: Estimate) -> Estimate: ...
+    @abstractmethod
+    def update(self, estimate: Estimate) -> Estimate: ...
+    @abstractmethod
+    def delete(self, id: int) -> None: ...
