@@ -15,6 +15,9 @@ class CompanySettings(Base):
     business_type = Column(String(50))
     business_category = Column(String(50))
     phone = Column(String(20))
+    mobile = Column(String(20))
+    email = Column(String(100))
+    bank_account = Column(String(100))
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 

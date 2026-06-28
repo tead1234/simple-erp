@@ -76,6 +76,7 @@ def _m_settings(o: ORM_Settings) -> CompanySettings:
         company_name=o.company_name, owner_name=o.owner_name,
         address=o.address, business_type=o.business_type,
         business_category=o.business_category, phone=o.phone,
+        mobile=o.mobile, email=o.email, bank_account=o.bank_account,
     )
 
 def _m_product(o: ORM_Product) -> Product:

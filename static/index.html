@@ -490,6 +490,18 @@
                 <label class="form-label small fw-semibold">종목</label>
                 <input type="text" class="form-control form-control-sm" id="cfg-business-category">
               </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">휴대폰(C.P)</label>
+                <input type="text" class="form-control form-control-sm" id="cfg-mobile" placeholder="010-0000-0000">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">이메일</label>
+                <input type="text" class="form-control form-control-sm" id="cfg-email" placeholder="example@naver.com">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">계좌번호</label>
+                <input type="text" class="form-control form-control-sm" id="cfg-bank-account" placeholder="농협 351-0000-0000-00">
+              </div>
               <div class="col-12">
                 <button class="btn-purple" onclick="saveSettings()"><i class="bi bi-check-lg"></i>저장</button>
               </div>
@@ -702,13 +714,9 @@
             </div>
             <input type="hidden" id="repair-customer-id">
           </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">기종</label>
-            <input type="text" class="form-control form-control-sm" id="repair-machine-type" placeholder="예: 트랙터, 이앙기, 콤바인">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">기계번호</label>
-            <input type="text" class="form-control form-control-sm" id="repair-machine-number" placeholder="시리얼 / 기계번호">
+          <div class="col-12">
+            <label class="form-label small fw-semibold">기종 / 모델명</label>
+            <input type="text" class="form-control form-control-sm" id="repair-machine-type" placeholder="예: 트랙터 LS XU6168, 이앙기 RR6">
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">증상 / 접수 내용 <span class="text-danger">*</span></label>
@@ -1127,6 +1135,7 @@ async function saveSale(printAfter) {
     _saleModal.hide();
     toast('판매가 등록되었습니다');
     loadDashboard();
+    loadSales();
     if (printAfter) window.open(`/print/sale/${result.id}`, '_blank');
   } catch (e) { toast(e.message, false); }
 }
@@ -1134,9 +1143,12 @@ async function saveSale(printAfter) {
 // ─── Repair Modal ─────────────────────────────────────────────────
 function openRepairModal() {
   document.getElementById('repair-date').value = today();
-  ['repair-customer-name','repair-machine-type','repair-machine-number','repair-symptom']
+  ['repair-customer-name','repair-machine-type','repair-symptom']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('repair-customer-id').value = '';
+  const sel = document.getElementById('repair-estimate-id');
+  [...sel.options].filter(o => o.dataset.dynamic).forEach(o => o.remove());
+  sel.value = '';
   _repairModal.show();
 }
 
@@ -1155,13 +1167,13 @@ async function saveRepair() {
       customer_id:    custId ? parseInt(custId) : null,
       customer_name:  custName,
       machine_type:   document.getElementById('repair-machine-type').value,
-      machine_number: document.getElementById('repair-machine-number').value,
       symptom,
       estimate_id:    document.getElementById('repair-estimate-id').value || null,
     });
     _repairModal.hide();
     toast('수리 접수가 완료되었습니다');
     loadDashboard();
+    loadMaintenance();
   } catch (e) { toast(e.message, false); }
 }
 
@@ -1353,6 +1365,9 @@ async function loadSettings() {
     document.getElementById('cfg-address').value          = s.address || '';
     document.getElementById('cfg-business-type').value    = s.business_type || '';
     document.getElementById('cfg-business-category').value= s.business_category || '';
+    document.getElementById('cfg-mobile').value           = s.mobile || '';
+    document.getElementById('cfg-email').value            = s.email || '';
+    document.getElementById('cfg-bank-account').value     = s.bank_account || '';
   } catch (e) {}
 }
 
@@ -1366,6 +1381,9 @@ async function saveSettings() {
       address:             document.getElementById('cfg-address').value,
       business_type:       document.getElementById('cfg-business-type').value,
       business_category:   document.getElementById('cfg-business-category').value,
+      mobile:              document.getElementById('cfg-mobile').value,
+      email:               document.getElementById('cfg-email').value,
+      bank_account:        document.getElementById('cfg-bank-account').value,
     });
     toast('설정이 저장되었습니다');
   } catch (e) { toast(e.message, false); }
@@ -1697,16 +1715,21 @@ async function cancelEstimate() {
 
 function openRepairFromEstimate() {
   if (!_currentEstimate) return;
+  const e = _currentEstimate;
+  const machineType = (e.items || []).map(i => i.model_name).filter(Boolean).join(', ');
   _estimateDetailModal.hide();
   setTimeout(() => {
     document.getElementById('repair-date').value = today();
-    document.getElementById('repair-customer-name').value = _currentEstimate.contractor_name;
-    document.getElementById('repair-customer-id').value = _currentEstimate.customer_id || '';
+    document.getElementById('repair-customer-name').value = e.contractor_name;
+    document.getElementById('repair-customer-id').value = e.customer_id || '';
+    document.getElementById('repair-machine-type').value = machineType;
     document.getElementById('repair-symptom').value = '';
-    document.getElementById('repair-machine-type').value = '';
-    document.getElementById('repair-machine-number').value = '';
     const sel = document.getElementById('repair-estimate-id');
-    if (sel) { [...sel.options].forEach(o => { if (o.value == _currentEstimate.id) sel.value = _currentEstimate.id; }); }
+    [...sel.options].filter(o => o.dataset.dynamic).forEach(o => o.remove());
+    const opt = new Option(`EST-${e.id} — ${e.contractor_name} (${Math.round(e.total_amount).toLocaleString('ko-KR')}원)`, e.id, true, true);
+    opt.dataset.dynamic = '1';
+    sel.add(opt, 1);
+    sel.value = e.id;
     _repairModal.show();
   }, 350);
 }

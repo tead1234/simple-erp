@@ -65,6 +65,12 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# ERP database & backups
+*.db
+*.db-wal
+*.db-shm
+backups/
+
 # Flask stuff:
 instance/
 .webassets-cache

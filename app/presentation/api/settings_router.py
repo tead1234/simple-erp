@@ -16,6 +16,9 @@ class SettingsIn(BaseModel):
     business_type: Optional[str] = None
     business_category: Optional[str] = None
     phone: Optional[str] = None
+    mobile: Optional[str] = None
+    email: Optional[str] = None
+    bank_account: Optional[str] = None
 
 
 @router.get("")

@@ -17,7 +17,8 @@ class SettingsService:
             "registration_number": s.registration_number, "company_name": s.company_name,
             "owner_name": s.owner_name, "address": s.address,
             "business_type": s.business_type, "business_category": s.business_category,
-            "phone": s.phone,
+            "phone": s.phone, "mobile": s.mobile, "email": s.email,
+            "bank_account": s.bank_account,
         }
 
     def save(self, **kwargs) -> None:
