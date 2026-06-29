@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.application.sale_service import SaleService, get_sale_service
 from app.infrastructure.database.session import get_db
+
+VALID_CATEGORIES = {"작업기", "트랙터"}
 
 router = APIRouter(prefix="/api/sales", tags=["sales"])
 
@@ -45,6 +47,7 @@ class SaleIn(BaseModel):
     customer_id: Optional[int] = None
     customer_name: str
     memo: Optional[str] = None
+    machine_category: Optional[str] = None
     items: List[SaleItemIn]
 
     @field_validator("sale_date")
@@ -65,8 +68,13 @@ class SaleIn(BaseModel):
 
 
 @router.get("")
-def list_sales(svc: SaleService = Depends(get_sale_service)):
-    return svc.list()
+def list_sales(
+    category: Optional[str] = Query(None),
+    svc: SaleService = Depends(get_sale_service),
+):
+    if category and category not in VALID_CATEGORIES:
+        raise HTTPException(400, f"유효하지 않은 카테고리: {category}")
+    return svc.list(category)
 
 
 @router.get("/{sale_id}")
@@ -82,6 +90,7 @@ def create_sale(data: SaleIn, svc: SaleService = Depends(get_sale_service), db: 
             customer_name=data.customer_name,
             customer_id=data.customer_id,
             memo=data.memo,
+            machine_category=data.machine_category,
             items=[i.model_dump() for i in data.items],
         )
         db.commit()

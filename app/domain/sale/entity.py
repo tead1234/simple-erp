@@ -23,4 +23,5 @@ class Sale:
     customer_id: int
     id: Optional[int] = None
     memo: Optional[str] = None
+    machine_category: Optional[str] = None
     items: List[SaleItem] = field(default_factory=list)

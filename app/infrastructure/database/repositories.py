@@ -50,7 +50,8 @@ def _m_sale_item(o: ORM_SaleItem) -> SaleItem:
 def _m_sale(o: ORM_Sale) -> Sale:
     return Sale(
         id=o.id, sale_date=o.sale_date, customer_id=o.customer_id,
-        memo=o.memo, items=[_m_sale_item(i) for i in o.items],
+        memo=o.memo, machine_category=o.machine_category,
+        items=[_m_sale_item(i) for i in o.items],
     )
 
 def _m_maintenance(o: ORM_Maintenance) -> MaintenanceOrder:
@@ -150,11 +151,15 @@ class SqlSaleRepository(ISaleRepository):
         o = self.db.query(ORM_Sale).filter(ORM_Sale.id == id).first()
         return _m_sale(o) if o else None
 
-    def list(self) -> List[Sale]:
-        return [_m_sale(o) for o in self.db.query(ORM_Sale).order_by(ORM_Sale.sale_date.desc()).limit(100).all()]
+    def list(self, machine_category: Optional[str] = None) -> List[Sale]:
+        query = self.db.query(ORM_Sale)
+        if machine_category:
+            query = query.filter(ORM_Sale.machine_category == machine_category)
+        return [_m_sale(o) for o in query.order_by(ORM_Sale.sale_date.desc()).limit(100).all()]
 
     def save(self, sale: Sale) -> Sale:
-        o = ORM_Sale(sale_date=sale.sale_date, customer_id=sale.customer_id, memo=sale.memo)
+        o = ORM_Sale(sale_date=sale.sale_date, customer_id=sale.customer_id,
+                     machine_category=sale.machine_category, memo=sale.memo)
         self.db.add(o)
         self.db.flush()
         for item in sale.items:
@@ -182,7 +187,9 @@ class SqlProductRepository(IProductRepository):
 
     def find_low_stock(self) -> List[Product]:
         return [_m_product(o) for o in
-                self.db.query(ORM_Product).filter(ORM_Product.stock_quantity <= 1).all()]
+                self.db.query(ORM_Product).filter(
+                    ORM_Product.stock_quantity <= ORM_Product.min_stock_quantity
+                ).all()]
 
     def find_by_code(self, code: str) -> Optional[Product]:
         o = self.db.query(ORM_Product).filter(ORM_Product.code == code).with_for_update().first()

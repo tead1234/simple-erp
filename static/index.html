@@ -286,7 +286,7 @@
             <button class="action-btn action-btn-purple" onclick="openSaleModal()">
               <i class="bi bi-cart-plus"></i>
               <div class="action-btn-title">농기구 판매</div>
-              <div class="action-btn-desc">판매 등록 · 재고 자동 차감 · 계약서 출력</div>
+              <div class="action-btn-desc">판매 등록 · 재고 자동 차감</div>
             </button>
           </div>
           <div class="col-md-6">
@@ -362,12 +362,20 @@
           <span class="fw-bold">판매내역</span>
           <button class="btn-purple" onclick="openSaleModal()"><i class="bi bi-plus-lg"></i>판매 등록</button>
         </div>
+        <ul class="nav nav-tabs mb-3" id="sales-tabs">
+          <li class="nav-item">
+            <a class="nav-link active" href="#" data-sale-category="작업기" onclick="switchSalesTab(this,'작업기');return false">작업기 판매내역</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-sale-category="트랙터" onclick="switchSalesTab(this,'트랙터');return false">트랙터 판매내역</a>
+          </li>
+        </ul>
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
-              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>총금액</th><th>자부담금</th><th>작업</th></tr></thead>
+              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>총금액</th><th>자부담금</th></tr></thead>
               <tbody id="sales-list">
-                <tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
           </div>
@@ -459,7 +467,7 @@
       <div id="section-settings" class="section">
         <div class="fw-bold mb-3">공급자 정보 설정</div>
         <div class="erp-card" style="max-width:580px">
-          <div class="erp-card-header">회사 정보 <span class="text-muted small fw-normal">(견적서·계약서 출력 시 자동 반영)</span></div>
+          <div class="erp-card-header">회사 정보 <span class="text-muted small fw-normal">(견적서 출력 시 자동 반영)</span></div>
           <div class="erp-card-body">
             <div class="row g-3">
               <div class="col-md-6">
@@ -540,7 +548,14 @@
             </div>
             <input type="hidden" id="sale-customer-id">
           </div>
-          <div class="col-md-5">
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">분류 <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="sale-category">
+              <option value="작업기">작업기</option>
+              <option value="트랙터">트랙터</option>
+            </select>
+          </div>
+          <div class="col-md-3">
             <label class="form-label small fw-semibold">비고</label>
             <input type="text" class="form-control form-control-sm" id="sale-memo" placeholder="특이사항">
           </div>
@@ -578,8 +593,7 @@
       </div>
       <div class="modal-footer" style="background:#f5f3ff;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="saveSale(true)"><i class="bi bi-file-earmark-text me-1"></i>저장 후 계약서 출력</button>
-        <button type="button" class="btn btn-sm btn-purple" onclick="saveSale(false)"><i class="bi bi-check-lg me-1"></i>판매 등록 완료</button>
+        <button type="button" class="btn btn-sm btn-purple" onclick="saveSale()"><i class="bi bi-check-lg me-1"></i>판매 등록 완료</button>
       </div>
     </div>
   </div>
@@ -1165,6 +1179,7 @@ function openSaleModal() {
   document.getElementById('sale-customer-name').value = '';
   document.getElementById('sale-customer-id').value = '';
   document.getElementById('sale-memo').value = '';
+  document.getElementById('sale-category').value = _salesCategory || '작업기';
   document.getElementById('sale-items-body').innerHTML = '';
   updateSaleTotal();
   addSaleItem();
@@ -1201,7 +1216,7 @@ function updateSaleTotal() {
   document.getElementById('sale-total-display').textContent = Math.round(sum).toLocaleString('ko-KR') + ' 원';
 }
 
-async function saveSale(printAfter) {
+async function saveSale() {
   const date     = document.getElementById('sale-date').value;
   const custName = document.getElementById('sale-customer-name').value.trim();
   const custId   = document.getElementById('sale-customer-id').value;
@@ -1228,13 +1243,13 @@ async function saveSale(printAfter) {
       customer_id: custId ? parseInt(custId) : null,
       customer_name: custName,
       memo: document.getElementById('sale-memo').value,
+      machine_category: document.getElementById('sale-category').value,
       items,
     });
     _saleModal.hide();
     toast('판매가 등록되었습니다');
     loadDashboard();
     loadSales();
-    if (printAfter) window.open(`/print/sale/${result.id}`, '_blank');
   } catch (e) { toast(e.message, false); }
 }
 
@@ -1400,9 +1415,18 @@ function selectCustomer(id, name) {
 }
 
 // ─── Sales list ───────────────────────────────────────────────────
+let _salesCategory = '작업기';
+
+function switchSalesTab(el, category) {
+  document.querySelectorAll('#sales-tabs .nav-link').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+  _salesCategory = category;
+  loadSales();
+}
+
 async function loadSales() {
   try {
-    const list = await api('GET', '/api/sales');
+    const list = await api('GET', `/api/sales?category=${encodeURIComponent(_salesCategory)}`);
     document.getElementById('sales-list').innerHTML = list.length
       ? list.map(s => `
           <tr>
@@ -1411,9 +1435,8 @@ async function loadSales() {
             <td>${s.items_summary || '-'}</td>
             <td>${fmt(s.total_amount)}</td>
             <td>${fmt(s.self_pay_amount)}</td>
-            <td><button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem" onclick="window.open('/print/sale/${s.id}','_blank')">계약서</button></td>
           </tr>`).join('')
-      : '<tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+      : '<tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
   } catch (e) {}
 }
 

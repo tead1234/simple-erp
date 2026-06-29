@@ -91,6 +91,7 @@ class Sale(Base):
     id = Column(Integer, primary_key=True)
     sale_date = Column(DateTime, nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    machine_category = Column(String(20))
     memo = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
     items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")

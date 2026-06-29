@@ -29,10 +29,24 @@ def migrate():
                 business_type VARCHAR(50),
                 business_category VARCHAR(50),
                 phone VARCHAR(20),
+                mobile VARCHAR(20),
+                email VARCHAR(100),
+                bank_account VARCHAR(100),
                 updated_at DATETIME
             )
         """)
         print("OK company_settings 테이블 생성")
+    else:
+        cur.execute("PRAGMA table_info(company_settings)")
+        existing_cs_cols = {row[1] for row in cur.fetchall()}
+        for col_name, col_def in [
+            ("mobile",       "VARCHAR(20)"),
+            ("email",        "VARCHAR(100)"),
+            ("bank_account", "VARCHAR(100)"),
+        ]:
+            if col_name not in existing_cs_cols:
+                cur.execute(f"ALTER TABLE company_settings ADD COLUMN {col_name} {col_def}")
+                print(f"OK company_settings.{col_name} 컬럼 추가")
 
     if "estimates" not in existing_tables:
         cur.execute("""
@@ -80,6 +94,16 @@ def migrate():
             )
         """)
         print("OK payments 테이블 생성")
+
+    # ── sales 컬럼 추가 ──────────────────────────────────────────
+
+    if "sales" in existing_tables:
+        cur.execute("PRAGMA table_info(sales)")
+        existing_sale_cols = {row[1] for row in cur.fetchall()}
+
+        if "machine_category" not in existing_sale_cols:
+            cur.execute("ALTER TABLE sales ADD COLUMN machine_category VARCHAR(20)")
+            print("OK sales.machine_category 컬럼 추가")
 
     # ── maintenance_orders 컬럼 추가 ─────────────────────────────
 

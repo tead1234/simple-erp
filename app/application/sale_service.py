@@ -13,8 +13,8 @@ class SaleService:
         self._sale_repo = sale_repo
         self._customer_svc = CustomerService(customer_repo)
 
-    def list(self) -> list:
-        sales = self._sale_repo.list()
+    def list(self, machine_category: Optional[str] = None) -> list:
+        sales = self._sale_repo.list(machine_category)
         result = []
         for s in sales:
             total = sum(i.total_amount for i in s.items)
@@ -27,6 +27,7 @@ class SaleService:
                 "items_summary": summary[:30] + ("…" if len(summary) > 30 else ""),
                 "total_amount": total,
                 "self_pay_amount": self_pay,
+                "machine_category": s.machine_category,
                 "memo": s.memo,
             })
         return result
@@ -54,7 +55,7 @@ class SaleService:
         }
 
     def create(self, sale_date: str, customer_name: str, customer_id: Optional[int],
-               memo: Optional[str], items: list) -> dict:
+               memo: Optional[str], machine_category: Optional[str], items: list) -> dict:
         cid = self._customer_svc.get_or_create(customer_name, customer_id)
         sale_items = []
         for item in items:
@@ -74,6 +75,7 @@ class SaleService:
             sale_date=datetime.fromisoformat(sale_date),
             customer_id=cid,
             memo=memo,
+            machine_category=machine_category,
             items=sale_items,
         ))
         return {"id": sale.id}

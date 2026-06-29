@@ -14,7 +14,7 @@ class Product:
 
     @property
     def is_low_stock(self) -> bool:
-        return self.stock_quantity <= 1
+        return self.stock_quantity <= self.min_stock_quantity
 
     def deduct(self):
         if self.stock_quantity <= 0:
