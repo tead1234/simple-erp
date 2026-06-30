@@ -1933,7 +1933,7 @@ async function openEstimateDetail(id) {
         <td>${Math.round(i.amount).toLocaleString('ko-KR')}원</td>
         <td>${Math.round(i.vat).toLocaleString('ko-KR')}원</td>
       </tr>`).join('') || '<tr><td colspan="7" class="text-center text-muted small">품목 없음</td></tr>';
-    document.getElementById('ed-edit-btn').style.display = e.status === '작성' ? '' : 'none';
+    document.getElementById('ed-edit-btn').style.display = e.status !== '취소' ? '' : 'none';
     document.getElementById('ed-confirm-btn').style.display = e.status === '작성' ? '' : 'none';
     document.getElementById('ed-cancel-btn').style.display = e.status !== '취소' ? '' : 'none';
     document.getElementById('ed-repair-btn').style.display = e.status === '확정' ? '' : 'none';

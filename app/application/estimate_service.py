@@ -88,8 +88,8 @@ class EstimateService:
         e = self._repo.get(estimate_id)
         if not e:
             raise HTTPException(404, "견적서를 찾을 수 없습니다")
-        if e.status != "작성":
-            raise HTTPException(400, "작성 상태의 견적서만 수정할 수 있습니다")
+        if e.status == "취소":
+            raise HTTPException(400, "취소된 견적서는 수정할 수 없습니다")
 
         cid = None
         if customer_name:
