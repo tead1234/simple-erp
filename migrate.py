@@ -70,6 +70,7 @@ def migrate():
             CREATE TABLE estimate_items (
                 id INTEGER PRIMARY KEY,
                 estimate_id INTEGER NOT NULL REFERENCES estimates(id),
+                product_id INTEGER REFERENCES products(id),
                 item_number INTEGER,
                 region VARCHAR(50),
                 model_name VARCHAR(100),
@@ -81,6 +82,12 @@ def migrate():
             )
         """)
         print("OK estimate_items 테이블 생성")
+    else:
+        cur.execute("PRAGMA table_info(estimate_items)")
+        existing_ei_cols = {row[1] for row in cur.fetchall()}
+        if "product_id" not in existing_ei_cols:
+            cur.execute("ALTER TABLE estimate_items ADD COLUMN product_id INTEGER REFERENCES products(id)")
+            print("OK estimate_items.product_id 컬럼 추가")
 
     if "payments" not in existing_tables:
         cur.execute("""
@@ -139,6 +146,12 @@ def migrate():
             print(f"OK maintenance_parts.{col_name} 컬럼 추가")
 
     # product_id nullable 변경은 SQLite에서 직접 불가 — 기존 데이터 그대로 유지
+
+    # ── 정비 상태 4단계(접수/작업중/완료/출고) → 3단계(작업중/완료/출고) 정리 ──
+
+    cur.execute("UPDATE maintenance_orders SET status = '작업중' WHERE status = '접수'")
+    if cur.rowcount:
+        print(f"OK maintenance_orders.status '접수' → '작업중' {cur.rowcount}건 변경")
 
     conn.commit()
     conn.close()

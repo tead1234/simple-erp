@@ -3,12 +3,12 @@ from datetime import datetime
 from typing import Optional, List
 
 _TRANSITIONS = {
-    "접수": {"작업중"},
     "작업중": {"완료"},
     "완료": {"출고"},
     "출고": set(),
 }
-VALID_STATUSES = set(_TRANSITIONS.keys())
+CANCELLABLE_STATUSES = {"작업중", "완료", "출고"}
+VALID_STATUSES = set(_TRANSITIONS.keys()) | {"취소"}
 
 
 @dataclass
@@ -35,7 +35,7 @@ class Payment:
 class MaintenanceOrder:
     customer_id: int
     received_date: datetime
-    status: str = "접수"
+    status: str = "작업중"
     machine_type: Optional[str] = None
     machine_number: Optional[str] = None
     symptom: Optional[str] = None
@@ -60,6 +60,11 @@ class MaintenanceOrder:
             self.completed_date = datetime.now()
         if new_status == "출고" and not self.released_date:
             self.released_date = datetime.now()
+
+    def cancel(self):
+        if self.status not in CANCELLABLE_STATUSES:
+            raise ValueError(f"'{self.status}' 상태의 정비는 취소할 수 없습니다")
+        self.status = "취소"
 
     def receivable(self) -> float:
         return max(0.0, round((self.total_amount or 0) - sum(p.amount for p in self.payments), 2))

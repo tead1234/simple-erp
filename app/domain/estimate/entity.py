@@ -15,6 +15,11 @@ class EstimateItem:
     item_number: Optional[int] = None
     region: Optional[str] = None
     spec: Optional[str] = None
+    product_id: Optional[int] = None
+
+    @property
+    def unit_price_with_vat(self) -> float:
+        return round(self.unit_price * 1.1, 2)
 
 
 @dataclass

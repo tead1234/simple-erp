@@ -10,18 +10,11 @@ router = APIRouter(prefix="/api/estimates", tags=["estimates"])
 
 
 class EstimateItemIn(BaseModel):
+    product_id: int
     region: Optional[str] = None
-    model_name: str
     spec: Optional[str] = None
     quantity: int = 1
     unit_price: float = 0
-
-    @field_validator("model_name")
-    @classmethod
-    def not_empty(cls, v):
-        if not v.strip():
-            raise ValueError("품목명을 입력하세요")
-        return v.strip()
 
 
 class EstimateIn(BaseModel):

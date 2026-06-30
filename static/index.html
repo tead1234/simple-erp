@@ -134,7 +134,7 @@
       display: inline-block; padding: 2px 9px; border-radius: 20px;
       font-size: .7rem; font-weight: 600;
     }
-    .s-작성,.s-접수,.s-예정 { background:#f1f5f9; color:#475569; }
+    .s-작성,.s-예정 { background:#f1f5f9; color:#475569; }
     .s-확정,.s-완료         { background:#dbeafe; color:#1e40af; }
     .s-작업중,.s-진행중      { background:#fef9c3; color:#854d0e; }
     .s-출고                  { background:#ede9fe; color:#6b21a8; }
@@ -189,7 +189,8 @@
       <div class="sidebar-section">영업</div>
       <ul class="nav flex-column">
         <li><a class="nav-link" href="#" data-section="estimates"><i class="bi bi-file-earmark-text"></i>견적서</a></li>
-        <li><a class="nav-link" href="#" data-section="sales"><i class="bi bi-cart3"></i>판매내역</a></li>
+        <li><a class="nav-link" href="#" data-section="sales-implement"><i class="bi bi-cart3"></i>작업기 판매내역</a></li>
+        <li><a class="nav-link" href="#" data-section="sales-tractor"><i class="bi bi-cart3"></i>트랙터 판매내역</a></li>
         <li><a class="nav-link" href="#" data-section="customers"><i class="bi bi-people"></i>고객관리</a></li>
       </ul>
       <div class="sidebar-section">정비</div>
@@ -356,25 +357,35 @@
         </div>
       </div>
 
-      <!-- ══════════════════════════════ 판매내역 -->
-      <div id="section-sales" class="section">
+      <!-- ══════════════════════════════ 작업기 판매내역 -->
+      <div id="section-sales-implement" class="section">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <span class="fw-bold">판매내역</span>
-          <button class="btn-purple" onclick="openSaleModal()"><i class="bi bi-plus-lg"></i>판매 등록</button>
+          <span class="fw-bold">작업기 판매내역</span>
+          <button class="btn-purple" onclick="openSaleModal('작업기')"><i class="bi bi-plus-lg"></i>판매 등록</button>
         </div>
-        <ul class="nav nav-tabs mb-3" id="sales-tabs">
-          <li class="nav-item">
-            <a class="nav-link active" href="#" data-sale-category="작업기" onclick="switchSalesTab(this,'작업기');return false">작업기 판매내역</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#" data-sale-category="트랙터" onclick="switchSalesTab(this,'트랙터');return false">트랙터 판매내역</a>
-          </li>
-        </ul>
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
               <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>총금액</th><th>자부담금</th></tr></thead>
-              <tbody id="sales-list">
+              <tbody id="sales-implement-list">
+                <tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════ 트랙터 판매내역 -->
+      <div id="section-sales-tractor" class="section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="fw-bold">트랙터 판매내역</span>
+          <button class="btn-purple" onclick="openSaleModal('트랙터')"><i class="bi bi-plus-lg"></i>판매 등록</button>
+        </div>
+        <div class="erp-card">
+          <div class="p-0">
+            <table class="erp-table">
+              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>총금액</th><th>자부담금</th></tr></thead>
+              <tbody id="sales-tractor-list">
                 <tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
@@ -411,10 +422,10 @@
         </div>
         <div class="d-flex gap-2 mb-3 flex-wrap">
           <button class="btn btn-sm maintenance-filter active" data-status="전체" style="border-color:var(--primary);color:var(--primary);background:var(--primary-light)">전체</button>
-          <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="접수">접수</button>
           <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="작업중">작업중</button>
           <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="완료">완료</button>
           <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="출고">출고</button>
+          <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="취소">취소</button>
         </div>
         <div class="erp-card">
           <div class="p-0">
@@ -778,9 +789,9 @@
         <!-- 상태 변경 -->
         <div class="d-flex gap-2 mb-3 align-items-center">
           <span class="small text-muted me-1">상태 변경:</span>
-          <button id="md-btn-작업중" class="btn btn-sm btn-outline-warning" onclick="changeMaintenanceStatus('작업중')">→ 작업중</button>
           <button id="md-btn-완료"   class="btn btn-sm btn-outline-success" onclick="changeMaintenanceStatus('완료')">→ 완료</button>
           <button id="md-btn-출고"   class="btn btn-sm btn-outline-primary" onclick="changeMaintenanceStatus('출고')">→ 출고</button>
+          <button id="md-btn-취소"   class="btn btn-sm btn-outline-danger ms-auto" onclick="cancelMaintenance()">정비 취소</button>
         </div>
 
         <hr class="my-2">
@@ -793,10 +804,11 @@
           </div>
           <div class="col-md-3">
             <label class="form-label small fw-semibold">수리금액</label>
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm" id="md-amount-edit-row">
               <input type="number" class="form-control" id="md-total-amount" placeholder="0">
               <button class="btn btn-outline-secondary" onclick="saveMaintenanceAmount()">저장</button>
             </div>
+            <div class="small text-muted" id="md-amount-estimate-note" style="display:none">견적서 금액이 자동으로 반영됩니다</div>
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">작업내용</label>
@@ -814,7 +826,11 @@
             <span id="md-parts-estimate-note" class="text-muted small" style="display:none">견적서에서 관리됨</span>
           </div>
           <div id="md-part-add-row" class="row g-2 mb-2">
-            <div class="col-5"><input type="text" class="form-control form-control-sm" id="md-part-name" placeholder="부품명"></div>
+            <input type="hidden" id="md-part-product-id">
+            <div class="col-5">
+              <input type="text" class="form-control form-control-sm" id="md-part-name" placeholder="재고상품 검색" readonly style="cursor:pointer; background:#fff"
+                     onclick="openProductPicker(null,'maintenance-part')">
+            </div>
             <div class="col-2"><input type="number" class="form-control form-control-sm" id="md-part-qty" placeholder="수량" value="1" min="1"></div>
             <div class="col-3"><input type="number" class="form-control form-control-sm" id="md-part-price" placeholder="단가" value="0" min="0"></div>
             <div class="col-2"><button class="btn btn-sm btn-green w-100" onclick="addMaintenancePart()">추가</button></div>
@@ -911,6 +927,26 @@
             <i class="bi bi-person-plus me-1"></i>신규 고객 등록
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL: 재고상품 검색 피커
+════════════════════════════════════════════════ -->
+<div class="modal fade" id="productPickerModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold"><i class="bi bi-search me-2"></i>재고상품 검색</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="form-control form-control-sm mb-3" id="product-picker-search"
+               placeholder="상품명 또는 코드" oninput="searchProductPicker()">
+        <div id="product-picker-results" style="max-height:320px;overflow-y:auto"></div>
       </div>
     </div>
   </div>
@@ -1084,7 +1120,7 @@ function toast(msg, ok = true) {
 
 // ─── Section routing ──────────────────────────────────────────────
 const SECTION_NAMES = {
-  dashboard:'대시보드', estimates:'견적서', sales:'판매내역',
+  dashboard:'대시보드', estimates:'견적서', 'sales-implement':'작업기 판매내역', 'sales-tractor':'트랙터 판매내역',
   customers:'고객관리', maintenance:'정비관리', fieldtrip:'출장관리',
   inventory:'부품재고', settings:'설정',
 };
@@ -1097,7 +1133,8 @@ function switchSection(name) {
   document.getElementById('topbar-title').textContent = SECTION_NAMES[name] || name;
   if (name === 'dashboard') loadDashboard();
   if (name === 'estimates') loadEstimates();
-  if (name === 'sales') loadSales();
+  if (name === 'sales-implement') loadSales('작업기');
+  if (name === 'sales-tractor') loadSales('트랙터');
   if (name === 'customers') loadCustomers();
   if (name === 'maintenance') loadMaintenance();
   if (name === 'fieldtrip') loadFieldtrips();
@@ -1157,6 +1194,7 @@ async function loadDashboard() {
 
 // ─── Sale Modal ───────────────────────────────────────────────────
 let _saleModal, _repairModal, _customerModal, _customerPickerModal, _estimateModal, _estimateDetailModal;
+let _productPickerModal;
 let _pickerTarget = null;
 let _currentEstimate = null;
 
@@ -1167,6 +1205,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _customerPickerModal= new bootstrap.Modal(document.getElementById('customerPickerModal'));
   _estimateModal      = new bootstrap.Modal(document.getElementById('estimateModal'));
   _estimateDetailModal= new bootstrap.Modal(document.getElementById('estimateDetailModal'));
+  _productPickerModal = new bootstrap.Modal(document.getElementById('productPickerModal'));
 
   const d = new Date();
   document.getElementById('topbar-date').textContent =
@@ -1175,12 +1214,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
 });
 
-function openSaleModal() {
+function openSaleModal(category) {
+  _saleModalCategory = category || '작업기';
   document.getElementById('sale-date').value = today();
   document.getElementById('sale-customer-name').value = '';
   document.getElementById('sale-customer-id').value = '';
   document.getElementById('sale-memo').value = '';
-  document.getElementById('sale-category').value = _salesCategory || '작업기';
+  document.getElementById('sale-category').value = _saleModalCategory;
   document.getElementById('sale-items-body').innerHTML = '';
   updateSaleTotal();
   addSaleItem();
@@ -1250,7 +1290,7 @@ async function saveSale() {
     _saleModal.hide();
     toast('판매가 등록되었습니다');
     loadDashboard();
-    loadSales();
+    loadSales(document.getElementById('sale-category').value);
   } catch (e) { toast(e.message, false); }
 }
 
@@ -1415,20 +1455,69 @@ function selectCustomer(id, name) {
   _customerPickerModal.hide();
 }
 
-// ─── Sales list ───────────────────────────────────────────────────
-let _salesCategory = '작업기';
+// ─── Product picker (재고상품 검색/선택, 견적서 항목 · 정비 부품 공통) ──────
+let _productPickerRow = null, _productPickerContext = null;
 
-function switchSalesTab(el, category) {
-  document.querySelectorAll('#sales-tabs .nav-link').forEach(a => a.classList.remove('active'));
-  el.classList.add('active');
-  _salesCategory = category;
-  loadSales();
+function openProductPicker(rowEl, context) {
+  _productPickerRow = rowEl;
+  _productPickerContext = context;
+  document.getElementById('product-picker-search').value = '';
+  document.getElementById('product-picker-results').innerHTML = '';
+  _productPickerModal.show();
+  searchProductPicker();
 }
 
-async function loadSales() {
+async function searchProductPicker() {
+  const q = document.getElementById('product-picker-search').value.trim().toLowerCase();
   try {
-    const list = await api('GET', `/api/sales?category=${encodeURIComponent(_salesCategory)}`);
-    document.getElementById('sales-list').innerHTML = list.length
+    const list = await api('GET', '/api/inventory');
+    const filtered = q
+      ? list.filter(p => p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q))
+      : list;
+    document.getElementById('product-picker-results').innerHTML = filtered.length
+      ? filtered.map(p => `
+          <div class="d-flex justify-content-between align-items-center py-2 px-1 border-bottom"
+               style="cursor:pointer" data-pid="${p.id}" data-pname="${(p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"
+               data-pprice="${p.unit_price || 0}" data-pstock="${p.stock_quantity}"
+               onclick="selectProduct(this.dataset.pid,this.dataset.pname,this.dataset.pprice,this.dataset.pstock)">
+            <div>
+              <div class="fw-semibold small">${p.name}${p.is_low_stock ? ' <span class="badge-s s-취소" style="font-size:.65rem">부족</span>' : ''}</div>
+              <div class="text-muted" style="font-size:.75rem">${p.code || ''}</div>
+            </div>
+            <div class="text-end small">
+              <div>재고 ${p.stock_quantity}개</div>
+              <div class="text-muted">${fmt(p.unit_price)}</div>
+            </div>
+          </div>`).join('')
+      : '<div class="text-center text-muted py-3 small">검색 결과 없음</div>';
+  } catch (e) {}
+}
+
+function selectProduct(id, name, unitPrice, stock) {
+  const product = { id: parseInt(id), name, unit_price: parseFloat(unitPrice) || 0, stock_quantity: parseInt(stock) || 0 };
+  if (_productPickerContext === 'estimate' && _productPickerRow) {
+    const row = _productPickerRow;
+    row.querySelector('[name=product_id]').value = product.id;
+    row.querySelector('[name=model_name]').value = product.name;
+    const priceInput = row.querySelector('[name=unit_price]');
+    if (!parseFloat(priceInput.value)) priceInput.value = product.unit_price;
+    calcEstimateRow(priceInput);
+  } else if (_productPickerContext === 'maintenance-part') {
+    document.getElementById('md-part-product-id').value = product.id;
+    document.getElementById('md-part-name').value = product.name;
+    document.getElementById('md-part-price').value = product.unit_price;
+  }
+  _productPickerModal.hide();
+}
+
+// ─── Sales list ───────────────────────────────────────────────────
+const SALES_LIST_EL = { '작업기': 'sales-implement-list', '트랙터': 'sales-tractor-list' };
+let _saleModalCategory = '작업기';
+
+async function loadSales(category) {
+  try {
+    const list = await api('GET', `/api/sales?category=${encodeURIComponent(category)}`);
+    document.getElementById(SALES_LIST_EL[category]).innerHTML = list.length
       ? list.map(s => `
           <tr>
             <td>${s.sale_date?.slice(0,10) || '-'}</td>
@@ -1506,14 +1595,18 @@ function renderMaintenanceDetail(m) {
 
   // 상태 버튼 가시성
   const s = m.status;
-  document.getElementById('md-btn-작업중').style.display = s === '접수' ? '' : 'none';
   document.getElementById('md-btn-완료').style.display   = s === '작업중' ? '' : 'none';
   document.getElementById('md-btn-출고').style.display   = s === '완료' ? '' : 'none';
+  document.getElementById('md-btn-취소').style.display   = s === '취소' ? 'none' : '';
 
   // 부품 (견적 연결 여부에 따라 수동 편집 UI 제어)
   const linkedEstimate = !!m.estimate_id;
   document.getElementById('md-part-add-row').style.display = linkedEstimate ? 'none' : '';
   document.getElementById('md-parts-estimate-note').style.display = linkedEstimate ? '' : 'none';
+  document.getElementById('md-amount-edit-row').style.display = linkedEstimate ? 'none' : '';
+  const amountNote = document.getElementById('md-amount-estimate-note');
+  amountNote.style.display = linkedEstimate ? '' : 'none';
+  amountNote.textContent = `견적서 금액 자동 반영: ${fmt(m.total_amount)}`;
   document.getElementById('md-parts').innerHTML = m.parts?.length
     ? m.parts.map(p => `<tr>
         <td>${p.part_name}</td><td>${p.quantity}</td>
@@ -1545,6 +1638,26 @@ async function changeMaintenanceStatus(newStatus) {
   } catch (e) { toast(e.message, false); }
 }
 
+async function cancelMaintenance() {
+  if (!_currentMaintenance) return;
+  const paid = _currentMaintenance.paid_amount || 0;
+  let confirmedRefund = false;
+  if (paid > 0) {
+    if (!confirm(`이미 ${fmt(paid)} 입금 내역이 있습니다. 환불 처리를 완료하셨습니까?\n확인을 누르면 입금 내역도 함께 취소(삭제)됩니다.`)) return;
+    confirmedRefund = true;
+  } else {
+    if (!confirm('이 정비를 취소하시겠습니까?')) return;
+  }
+  try {
+    await api('POST', `/api/maintenance/${_currentMaintenance.id}/cancel`, { confirmed_refund: confirmedRefund });
+    toast('정비가 취소되었습니다');
+    const m = await api('GET', `/api/maintenance/${_currentMaintenance.id}`);
+    _currentMaintenance = m;
+    renderMaintenanceDetail(m);
+    loadMaintenance();
+  } catch (e) { toast(e.message, false); }
+}
+
 async function saveMaintenanceWork() {
   try {
     await api('PATCH', `/api/maintenance/${_currentMaintenance.id}`, {
@@ -1568,13 +1681,14 @@ async function saveMaintenanceAmount() {
 }
 
 async function addMaintenancePart() {
-  const name  = document.getElementById('md-part-name').value.trim();
+  const productId = parseInt(document.getElementById('md-part-product-id').value);
   const qty   = parseInt(document.getElementById('md-part-qty').value) || 1;
   const price = parseFloat(document.getElementById('md-part-price').value) || 0;
-  if (!name) return toast('부품명을 입력하세요', false);
+  if (!productId) return toast('재고상품을 선택하세요', false);
   try {
-    await api('POST', `/api/maintenance/${_currentMaintenance.id}/parts`, { part_name: name, quantity: qty, unit_price: price });
+    await api('POST', `/api/maintenance/${_currentMaintenance.id}/parts`, { product_id: productId, quantity: qty, unit_price: price });
     toast('부품이 추가되었습니다');
+    document.getElementById('md-part-product-id').value = '';
     document.getElementById('md-part-name').value = '';
     document.getElementById('md-part-qty').value = '1';
     document.getElementById('md-part-price').value = '0';
@@ -1833,6 +1947,7 @@ async function openEditEstimateModal() {
     const rows = document.querySelectorAll('#est-items-body tr');
     const row = rows[rows.length - 1];
     row.querySelector('[name=region]').value = i.region || '';
+    row.querySelector('[name=product_id]').value = i.product_id || '';
     row.querySelector('[name=model_name]').value = i.model_name || '';
     row.querySelector('[name=spec]').value = i.spec || '';
     row.querySelector('[name=quantity]').value = i.quantity;
@@ -1849,7 +1964,14 @@ function addEstimateItem() {
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input type="text" class="form-control form-control-sm" name="region" placeholder="지역"></td>
-    <td><input type="text" class="form-control form-control-sm" name="model_name" placeholder="기종/모델명"></td>
+    <td>
+      <input type="hidden" name="product_id">
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control" name="model_name" placeholder="재고상품 검색" readonly style="cursor:pointer; background:#fff"
+               onclick="openProductPicker(this.closest('tr'),'estimate')">
+        <button type="button" class="btn btn-outline-secondary" onclick="openProductPicker(this.closest('tr'),'estimate')"><i class="bi bi-search"></i></button>
+      </div>
+    </td>
     <td><input type="text" class="form-control form-control-sm" name="spec" placeholder="규격"></td>
     <td><input type="number" class="form-control form-control-sm text-end" name="quantity" value="1" min="1" oninput="calcEstimateRow(this)"></td>
     <td><input type="number" class="form-control form-control-sm text-end" name="unit_price" value="0" min="0" oninput="calcEstimateRow(this)"></td>
@@ -1886,13 +2008,13 @@ async function saveEstimate() {
   const date = document.getElementById('est-date').value;
   if (!contractor || !date) { toast('견적일과 거래처명을 입력하세요', false); return; }
   const items = [...document.querySelectorAll('#est-items-body tr')].map(r => ({
+    product_id: parseInt(r.querySelector('[name=product_id]').value) || null,
     region: r.querySelector('[name=region]').value,
-    model_name: r.querySelector('[name=model_name]').value,
     spec: r.querySelector('[name=spec]').value,
     quantity: parseInt(r.querySelector('[name=quantity]').value) || 1,
     unit_price: parseFloat(r.querySelector('[name=unit_price]').value) || 0,
-  })).filter(i => i.model_name.trim());
-  if (!items.length) { toast('품목명을 입력하세요', false); return; }
+  })).filter(i => i.product_id);
+  if (!items.length) { toast('재고상품을 선택하여 품목을 추가하세요', false); return; }
   const editId = document.getElementById('est-edit-id').value;
   const body = {
     contractor_name: contractor,

@@ -50,9 +50,13 @@ class MaintenanceUpdate(BaseModel):
 
 
 class PartIn(BaseModel):
-    part_name: str
+    product_id: int
     quantity: int = 1
     unit_price: float = 0
+
+
+class CancelIn(BaseModel):
+    confirmed_refund: bool = False
 
 
 class PaymentIn(BaseModel):
@@ -107,7 +111,7 @@ def update_maintenance(order_id: int, data: MaintenanceUpdate, svc: MaintenanceS
 
 @router.post("/{order_id}/parts", status_code=201)
 def add_part(order_id: int, data: PartIn, svc: MaintenanceService = Depends(get_maintenance_service), db: Session = Depends(get_db)):
-    result = svc.add_part(order_id, data.part_name, data.quantity, data.unit_price)
+    result = svc.add_part(order_id, data.product_id, data.quantity, data.unit_price)
     db.commit()
     return result
 
@@ -121,5 +125,12 @@ def delete_part(order_id: int, part_id: int, svc: MaintenanceService = Depends(g
 @router.post("/{order_id}/payments", status_code=201)
 def add_payment(order_id: int, data: PaymentIn, svc: MaintenanceService = Depends(get_maintenance_service), db: Session = Depends(get_db)):
     result = svc.add_payment(order_id, data.amount, data.payment_date, data.memo)
+    db.commit()
+    return result
+
+
+@router.post("/{order_id}/cancel")
+def cancel_maintenance(order_id: int, data: CancelIn, svc: MaintenanceService = Depends(get_maintenance_service), db: Session = Depends(get_db)):
+    result = svc.cancel(order_id, data.confirmed_refund)
     db.commit()
     return result

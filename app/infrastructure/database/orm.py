@@ -52,6 +52,7 @@ class EstimateItem(Base):
     __tablename__ = "estimate_items"
     id = Column(Integer, primary_key=True)
     estimate_id = Column(Integer, ForeignKey("estimates.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     item_number = Column(Integer)
     region = Column(String(50))
     model_name = Column(String(100))
@@ -122,7 +123,7 @@ class MaintenanceOrder(Base):
     symptom = Column(Text)
     description = Column(Text)
     total_amount = Column(Float, default=0)
-    status = Column(String(10), default="접수")
+    status = Column(String(10), default="작업중")
     received_date = Column(DateTime, nullable=False, default=datetime.now)
     completed_date = Column(DateTime, nullable=True)
     released_date = Column(DateTime, nullable=True)

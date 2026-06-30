@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(rm -f erp_test.db)",
+      "Bash(DATABASE_URL=\"sqlite:///./erp_test.db\" PORT=8731 python -m uvicorn main:app --host 127.0.0.1 --port 8731)",
+      "Bash(echo \"started with pid $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8731/)",
+      "Bash(curl -s http://127.0.0.1:8731/api/maintenance)",
+      "Bash(curl -s \"http://127.0.0.1:8731/api/sales?category=작업기\")",
+      "Bash(curl -s \"http://127.0.0.1:8731/api/sales?category=트랙터\")",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

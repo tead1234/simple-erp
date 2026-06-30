@@ -5,16 +5,20 @@ from app.domain.maintenance.entity import MaintenanceOrder, VALID_STATUSES
 from app.domain.maintenance.repository import IMaintenanceRepository
 from app.domain.customer.repository import ICustomerRepository
 from app.domain.estimate.repository import IEstimateRepository
-from app.infrastructure.database.repositories import get_maintenance_repo, get_customer_repo, get_estimate_repo
+from app.domain.product.repository import IProductRepository
+from app.infrastructure.database.repositories import (
+    get_maintenance_repo, get_customer_repo, get_estimate_repo, get_product_repo,
+)
 from app.application.customer_service import CustomerService
 
 
 class MaintenanceService:
     def __init__(self, repo: IMaintenanceRepository, customer_repo: ICustomerRepository,
-                 estimate_repo: IEstimateRepository):
+                 estimate_repo: IEstimateRepository, product_repo: IProductRepository):
         self._repo = repo
         self._customer_svc = CustomerService(customer_repo)
         self._estimate_repo = estimate_repo
+        self._product_repo = product_repo
 
     def list(self, status: Optional[str] = None) -> list:
         if status and status not in VALID_STATUSES:
@@ -65,8 +69,8 @@ class MaintenanceService:
             "completed_date": order.completed_date.isoformat() if order.completed_date else None,
             "released_date": order.released_date.isoformat() if order.released_date else None,
             "parts": [
-                {"id": p.id, "part_name": p.part_name, "quantity": p.quantity,
-                 "unit_price": p.unit_price, "amount": p.amount}
+                {"id": p.id, "part_name": p.part_name, "product_id": p.product_id,
+                 "quantity": p.quantity, "unit_price": p.unit_price, "amount": p.amount}
                 for p in order.parts
             ],
             "payments": [
@@ -92,10 +96,13 @@ class MaintenanceService:
             estimate = self._estimate_repo.get(estimate_id)
             if estimate:
                 parts = [
-                    {"part_name": i.model_name, "quantity": i.quantity, "unit_price": i.unit_price}
+                    {"part_name": i.model_name, "quantity": i.quantity,
+                     "unit_price": i.unit_price_with_vat, "product_id": i.product_id}
                     for i in estimate.items
                 ]
                 self._repo.replace_parts(order.id, parts)
+                order.total_amount = estimate.total_amount
+                self._repo.save(order)
         return {"id": order.id}
 
     def update(self, order_id: int, status: Optional[str], description: Optional[str],
@@ -109,6 +116,8 @@ class MaintenanceService:
                 order.transition(status)
             except ValueError as e:
                 raise HTTPException(400, str(e))
+            if status == "출고":
+                self._deduct_stock_for_parts(order)
 
         if description is not None:
             if order.status in ("완료", "출고"):
@@ -118,24 +127,27 @@ class MaintenanceService:
         if total_amount is not None:
             if order.status in ("완료", "출고"):
                 raise HTTPException(400, "완료·출고된 정비는 수리금액을 수정할 수 없습니다")
+            if order.estimate_id:
+                raise HTTPException(400, "견적서와 연결된 정비의 수리금액은 견적서에서 자동으로 반영됩니다")
             order.total_amount = total_amount
 
         self._repo.save(order)
         return {"id": order.id}
 
-    def add_part(self, order_id: int, part_name: str, quantity: int, unit_price: float) -> dict:
+    def add_part(self, order_id: int, product_id: int, quantity: int, unit_price: float) -> dict:
         order = self._repo.get(order_id)
         if not order:
             raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
         if order.estimate_id:
             raise HTTPException(400, "견적서와 연결된 정비의 수리물품은 견적서에서 수정하세요")
-        if not part_name.strip():
-            raise HTTPException(400, "부품명을 입력하세요")
+        product = self._product_repo.get(product_id)
+        if not product:
+            raise HTTPException(400, "재고상품을 찾을 수 없습니다")
         if quantity <= 0:
             raise HTTPException(400, "수량은 1 이상이어야 합니다")
         if unit_price < 0:
             raise HTTPException(400, "단가는 0 이상이어야 합니다")
-        return self._repo.add_part(order_id, part_name.strip(), quantity, unit_price)
+        return self._repo.add_part(order_id, product.name, quantity, unit_price, product_id=product.id)
 
     def delete_part(self, order_id: int, part_id: int) -> None:
         order = self._repo.get(order_id)
@@ -156,10 +168,77 @@ class MaintenanceService:
             raise HTTPException(400, f"입금액({amount:,.0f}원)이 미수금({receivable:,.0f}원)을 초과합니다")
         return self._repo.add_payment(order_id, amount, datetime.fromisoformat(payment_date), memo)
 
+    def cancel(self, order_id: int, confirmed_refund: bool = False) -> dict:
+        order = self._repo.get(order_id)
+        if not order:
+            raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
+
+        paid = round(sum(p.amount for p in order.payments), 2)
+        if paid > 0 and not confirmed_refund:
+            raise HTTPException(
+                409,
+                f"이미 {paid:,.0f}원의 입금 내역이 있습니다. 환불 처리를 완료한 뒤 다시 취소해주세요.",
+            )
+
+        try:
+            order.cancel()
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+        if paid > 0:
+            self._repo.delete_payments(order_id)
+
+        if order.released_date:
+            self._restore_stock_for_parts(order)
+
+        if order.estimate_id:
+            estimate = self._estimate_repo.get(order.estimate_id)
+            if estimate and estimate.status != "취소":
+                estimate.cancel()
+                self._estimate_repo.save(estimate)
+
+        self._repo.save(order)
+        return {"id": order.id, "status": order.status}
+
+    def _stock_quantities(self, order: MaintenanceOrder) -> dict:
+        needed: dict = {}
+        for part in order.parts:
+            if part.product_id:
+                needed[part.product_id] = needed.get(part.product_id, 0) + part.quantity
+        return needed
+
+    def _deduct_stock_for_parts(self, order: MaintenanceOrder) -> None:
+        needed = self._stock_quantities(order)
+        if not needed:
+            return
+        products = {pid: self._product_repo.get(pid) for pid in needed}
+        insufficient = [
+            f"{products[pid].name if products[pid] else pid}(필요 {qty}, 재고 {products[pid].stock_quantity if products[pid] else 0})"
+            for pid, qty in needed.items() if not products[pid] or products[pid].stock_quantity < qty
+        ]
+        if insufficient:
+            raise HTTPException(400, f"재고가 부족하여 출고할 수 없습니다: {', '.join(insufficient)}")
+        for pid, qty in needed.items():
+            product = products[pid]
+            product.stock_quantity -= qty
+            self._product_repo.save(product)
+            self._product_repo.add_movement(pid, "출고", qty, f"정비 #{order.id} 출고")
+
+    def _restore_stock_for_parts(self, order: MaintenanceOrder) -> None:
+        needed = self._stock_quantities(order)
+        for pid, qty in needed.items():
+            product = self._product_repo.get(pid)
+            if not product:
+                continue
+            product.stock_quantity += qty
+            self._product_repo.save(product)
+            self._product_repo.add_movement(pid, "입고", qty, f"정비 #{order.id} 취소 재고복구")
+
 
 def get_maintenance_service(
     repo: IMaintenanceRepository = Depends(get_maintenance_repo),
     customer_repo: ICustomerRepository = Depends(get_customer_repo),
     estimate_repo: IEstimateRepository = Depends(get_estimate_repo),
+    product_repo: IProductRepository = Depends(get_product_repo),
 ) -> MaintenanceService:
-    return MaintenanceService(repo, customer_repo, estimate_repo)
+    return MaintenanceService(repo, customer_repo, estimate_repo, product_repo)

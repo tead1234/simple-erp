@@ -97,7 +97,7 @@ def _m_estimate(o: ORM_Estimate) -> Estimate:
         vat_amount=o.vat_amount or 0, total_amount=o.total_amount or 0,
         memo=o.memo, status=o.status,
         items=[EstimateItem(
-            id=i.id, estimate_id=i.estimate_id, item_number=i.item_number,
+            id=i.id, estimate_id=i.estimate_id, item_number=i.item_number, product_id=i.product_id,
             region=i.region, model_name=i.model_name, spec=i.spec,
             quantity=i.quantity, unit_price=i.unit_price, amount=i.amount, vat=i.vat,
         ) for i in o.items],
@@ -266,14 +266,15 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
             "is_settled": receivable == 0,
         }
 
-    def add_part(self, maintenance_id: int, part_name: str, quantity: int, unit_price: float) -> dict:
+    def add_part(self, maintenance_id: int, part_name: str, quantity: int, unit_price: float,
+                 product_id: Optional[int] = None) -> dict:
         amount = round(quantity * unit_price, 2)
-        p = ORM_Part(maintenance_id=maintenance_id, part_name=part_name,
+        p = ORM_Part(maintenance_id=maintenance_id, part_name=part_name, product_id=product_id,
                      quantity=quantity, unit_price=unit_price, amount=amount)
         self.db.add(p)
         self.db.flush()
         return {"id": p.id, "part_name": p.part_name, "quantity": p.quantity,
-                "unit_price": p.unit_price, "amount": p.amount}
+                "unit_price": p.unit_price, "amount": p.amount, "product_id": p.product_id}
 
     def delete_part(self, part_id: int) -> None:
         p = self.db.query(ORM_Part).filter(ORM_Part.id == part_id).first()
@@ -292,10 +293,15 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
             self.db.add(ORM_Part(
                 maintenance_id=maintenance_id,
                 part_name=p["part_name"],
+                product_id=p.get("product_id"),
                 quantity=p["quantity"],
                 unit_price=p["unit_price"],
                 amount=amount,
             ))
+        self.db.flush()
+
+    def delete_payments(self, maintenance_id: int) -> None:
+        self.db.query(ORM_Payment).filter(ORM_Payment.maintenance_id == maintenance_id).delete()
         self.db.flush()
 
 
@@ -338,7 +344,7 @@ class DashboardQuery:
         ).scalar() or 0
 
         active_maintenance = self.db.query(func.count(ORM_Maintenance.id)).filter(
-            ORM_Maintenance.status.in_(["접수", "작업중"])
+            ORM_Maintenance.status == "작업중"
         ).scalar() or 0
 
         upcoming_fieldtrips = self.db.query(func.count(ORM_FieldTrip.id)).filter(
@@ -460,7 +466,7 @@ class SqlEstimateRepository(IEstimateRepository):
             self.db.flush()
             for idx, item in enumerate(estimate.items, 1):
                 self.db.add(ORM_EstimateItem(
-                    estimate_id=o.id, item_number=idx,
+                    estimate_id=o.id, item_number=idx, product_id=item.product_id,
                     region=item.region, model_name=item.model_name,
                     spec=item.spec, quantity=item.quantity,
                     unit_price=item.unit_price, amount=item.amount, vat=item.vat,
@@ -482,7 +488,7 @@ class SqlEstimateRepository(IEstimateRepository):
         self.db.flush()
         for idx, item in enumerate(estimate.items, 1):
             self.db.add(ORM_EstimateItem(
-                estimate_id=o.id, item_number=idx,
+                estimate_id=o.id, item_number=idx, product_id=item.product_id,
                 region=item.region, model_name=item.model_name,
                 spec=item.spec, quantity=item.quantity,
                 unit_price=item.unit_price, amount=item.amount, vat=item.vat,
