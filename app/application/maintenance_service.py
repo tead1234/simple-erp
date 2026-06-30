@@ -4,14 +4,17 @@ from fastapi import Depends, HTTPException
 from app.domain.maintenance.entity import MaintenanceOrder, VALID_STATUSES
 from app.domain.maintenance.repository import IMaintenanceRepository
 from app.domain.customer.repository import ICustomerRepository
-from app.infrastructure.database.repositories import get_maintenance_repo, get_customer_repo
+from app.domain.estimate.repository import IEstimateRepository
+from app.infrastructure.database.repositories import get_maintenance_repo, get_customer_repo, get_estimate_repo
 from app.application.customer_service import CustomerService
 
 
 class MaintenanceService:
-    def __init__(self, repo: IMaintenanceRepository, customer_repo: ICustomerRepository):
+    def __init__(self, repo: IMaintenanceRepository, customer_repo: ICustomerRepository,
+                 estimate_repo: IEstimateRepository):
         self._repo = repo
         self._customer_svc = CustomerService(customer_repo)
+        self._estimate_repo = estimate_repo
 
     def list(self, status: Optional[str] = None) -> list:
         if status and status not in VALID_STATUSES:
@@ -47,6 +50,7 @@ class MaintenanceService:
         paid = sum(p.amount for p in order.payments)
         return {
             "id": order.id,
+            "estimate_id": order.estimate_id,
             "customer_name": customer.name if customer else "-",
             "customer_phone": customer.phone if customer else None,
             "machine_type": order.machine_type,
@@ -84,6 +88,14 @@ class MaintenanceService:
             machine_number=machine_number,
             symptom=symptom,
         ))
+        if estimate_id:
+            estimate = self._estimate_repo.get(estimate_id)
+            if estimate:
+                parts = [
+                    {"part_name": i.model_name, "quantity": i.quantity, "unit_price": i.unit_price}
+                    for i in estimate.items
+                ]
+                self._repo.replace_parts(order.id, parts)
         return {"id": order.id}
 
     def update(self, order_id: int, status: Optional[str], description: Optional[str],
@@ -112,8 +124,11 @@ class MaintenanceService:
         return {"id": order.id}
 
     def add_part(self, order_id: int, part_name: str, quantity: int, unit_price: float) -> dict:
-        if not self._repo.get(order_id):
+        order = self._repo.get(order_id)
+        if not order:
             raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
+        if order.estimate_id:
+            raise HTTPException(400, "견적서와 연결된 정비의 수리물품은 견적서에서 수정하세요")
         if not part_name.strip():
             raise HTTPException(400, "부품명을 입력하세요")
         if quantity <= 0:
@@ -123,8 +138,11 @@ class MaintenanceService:
         return self._repo.add_part(order_id, part_name.strip(), quantity, unit_price)
 
     def delete_part(self, order_id: int, part_id: int) -> None:
-        if not self._repo.get(order_id):
+        order = self._repo.get(order_id)
+        if not order:
             raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
+        if order.estimate_id:
+            raise HTTPException(400, "견적서와 연결된 정비의 수리물품은 견적서에서 수정하세요")
         self._repo.delete_part(part_id)
 
     def add_payment(self, order_id: int, amount: float, payment_date: str, memo: Optional[str]) -> dict:
@@ -142,5 +160,6 @@ class MaintenanceService:
 def get_maintenance_service(
     repo: IMaintenanceRepository = Depends(get_maintenance_repo),
     customer_repo: ICustomerRepository = Depends(get_customer_repo),
+    estimate_repo: IEstimateRepository = Depends(get_estimate_repo),
 ) -> MaintenanceService:
-    return MaintenanceService(repo, customer_repo)
+    return MaintenanceService(repo, customer_repo, estimate_repo)

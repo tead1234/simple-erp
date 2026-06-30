@@ -811,8 +811,9 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="fw-semibold small">사용 부품</span>
+            <span id="md-parts-estimate-note" class="text-muted small" style="display:none">견적서에서 관리됨</span>
           </div>
-          <div class="row g-2 mb-2">
+          <div id="md-part-add-row" class="row g-2 mb-2">
             <div class="col-5"><input type="text" class="form-control form-control-sm" id="md-part-name" placeholder="부품명"></div>
             <div class="col-2"><input type="number" class="form-control form-control-sm" id="md-part-qty" placeholder="수량" value="1" min="1"></div>
             <div class="col-3"><input type="number" class="form-control form-control-sm" id="md-part-price" placeholder="단가" value="0" min="0"></div>
@@ -1509,14 +1510,17 @@ function renderMaintenanceDetail(m) {
   document.getElementById('md-btn-완료').style.display   = s === '작업중' ? '' : 'none';
   document.getElementById('md-btn-출고').style.display   = s === '완료' ? '' : 'none';
 
-  // 부품
+  // 부품 (견적 연결 여부에 따라 수동 편집 UI 제어)
+  const linkedEstimate = !!m.estimate_id;
+  document.getElementById('md-part-add-row').style.display = linkedEstimate ? 'none' : '';
+  document.getElementById('md-parts-estimate-note').style.display = linkedEstimate ? '' : 'none';
   document.getElementById('md-parts').innerHTML = m.parts?.length
     ? m.parts.map(p => `<tr>
         <td>${p.part_name}</td><td>${p.quantity}</td>
         <td class="text-end">${fmt(p.unit_price)}</td>
         <td class="text-end">${fmt(p.amount)}</td>
-        <td><button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.7rem"
-            onclick="deleteMaintenancePart(${p.id})">삭제</button></td>
+        <td>${linkedEstimate ? '' : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.7rem"
+            onclick="deleteMaintenancePart(${p.id})">삭제</button>`}</td>
       </tr>`).join('')
     : '<tr><td colspan="5" class="text-center text-muted small py-2">없음</td></tr>';
 
@@ -1929,7 +1933,7 @@ async function openEstimateDetail(id) {
         <td>${Math.round(i.amount).toLocaleString('ko-KR')}원</td>
         <td>${Math.round(i.vat).toLocaleString('ko-KR')}원</td>
       </tr>`).join('') || '<tr><td colspan="7" class="text-center text-muted small">품목 없음</td></tr>';
-    document.getElementById('ed-edit-btn').style.display = e.status === '작성' ? '' : 'none';
+    document.getElementById('ed-edit-btn').style.display = e.status !== '취소' ? '' : 'none';
     document.getElementById('ed-confirm-btn').style.display = e.status === '작성' ? '' : 'none';
     document.getElementById('ed-cancel-btn').style.display = e.status !== '취소' ? '' : 'none';
     document.getElementById('ed-repair-btn').style.display = e.status === '확정' ? '' : 'none';

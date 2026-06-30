@@ -4,14 +4,17 @@ from fastapi import Depends, HTTPException
 from app.domain.estimate.entity import Estimate, EstimateItem
 from app.domain.estimate.repository import IEstimateRepository
 from app.domain.customer.repository import ICustomerRepository
-from app.infrastructure.database.repositories import get_estimate_repo, get_customer_repo
+from app.domain.maintenance.repository import IMaintenanceRepository
+from app.infrastructure.database.repositories import get_estimate_repo, get_customer_repo, get_maintenance_repo
 from app.application.customer_service import CustomerService
 
 
 class EstimateService:
-    def __init__(self, repo: IEstimateRepository, customer_repo: ICustomerRepository):
+    def __init__(self, repo: IEstimateRepository, customer_repo: ICustomerRepository,
+                 maintenance_repo: IMaintenanceRepository):
         self._repo = repo
         self._customer_svc = CustomerService(customer_repo)
+        self._maintenance_repo = maintenance_repo
 
     def list(self) -> list:
         return [
@@ -85,8 +88,8 @@ class EstimateService:
         e = self._repo.get(estimate_id)
         if not e:
             raise HTTPException(404, "견적서를 찾을 수 없습니다")
-        if e.status != "작성":
-            raise HTTPException(400, "작성 상태의 견적서만 수정할 수 있습니다")
+        if e.status == "취소":
+            raise HTTPException(400, "취소된 견적서는 수정할 수 없습니다")
 
         cid = None
         if customer_name:
@@ -114,6 +117,15 @@ class EstimateService:
         e.items = est_items
 
         self._repo.update(e)
+
+        linked = self._maintenance_repo.find_by_estimate_id(estimate_id)
+        if linked:
+            parts = [
+                {"part_name": i.model_name, "quantity": i.quantity, "unit_price": i.unit_price}
+                for i in est_items
+            ]
+            self._maintenance_repo.replace_parts(linked.id, parts)
+
         return {"id": e.id}
 
     def delete(self, estimate_id: int) -> None:
@@ -148,5 +160,6 @@ class EstimateService:
 def get_estimate_service(
     repo: IEstimateRepository = Depends(get_estimate_repo),
     customer_repo: ICustomerRepository = Depends(get_customer_repo),
+    maintenance_repo: IMaintenanceRepository = Depends(get_maintenance_repo),
 ) -> EstimateService:
-    return EstimateService(repo, customer_repo)
+    return EstimateService(repo, customer_repo, maintenance_repo)

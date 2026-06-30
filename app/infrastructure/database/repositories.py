@@ -280,6 +280,24 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
         if p:
             self.db.delete(p)
 
+    def find_by_estimate_id(self, estimate_id: int):
+        o = self.db.query(ORM_Maintenance).filter(ORM_Maintenance.estimate_id == estimate_id).first()
+        return _m_maintenance(o) if o else None
+
+    def replace_parts(self, maintenance_id: int, parts: list) -> None:
+        self.db.query(ORM_Part).filter(ORM_Part.maintenance_id == maintenance_id).delete()
+        self.db.flush()
+        for p in parts:
+            amount = round(p["quantity"] * p["unit_price"], 2)
+            self.db.add(ORM_Part(
+                maintenance_id=maintenance_id,
+                part_name=p["part_name"],
+                quantity=p["quantity"],
+                unit_price=p["unit_price"],
+                amount=amount,
+            ))
+        self.db.flush()
+
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
