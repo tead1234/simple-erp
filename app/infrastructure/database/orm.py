@@ -70,9 +70,13 @@ class Product(Base):
     name = Column(String(100), nullable=False)
     code = Column(String(50), unique=True)
     category = Column(String(50))
+    model = Column(String(200))
     stock_quantity = Column(Integer, default=0)
     min_stock_quantity = Column(Integer, default=0)
     unit_price = Column(Float, default=0)
+    dealer_price = Column(Float, default=0)
+    center_price = Column(Float, default=0)
+    consumer_price = Column(Float, default=0)
     created_at = Column(DateTime, default=datetime.now)
 
 
@@ -164,4 +168,16 @@ class FieldTrip(Base):
     purpose = Column(String(200))
     status = Column(String(20), default="예정")
     result = Column(Text)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class Equipment(Base):
+    __tablename__ = "equipment"
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    chassis_number = Column(String(100))
+    machine_type = Column(String(100))
+    model_name = Column(String(100))
+    purchase_date = Column(DateTime)
+    memo = Column(Text)
     created_at = Column(DateTime, default=datetime.now)

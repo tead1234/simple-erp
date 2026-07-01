@@ -18,6 +18,21 @@ def migrate():
 
     # ── 신규 테이블 생성 ──────────────────────────────────────────
 
+    if "equipment" not in existing_tables:
+        cur.execute("""
+            CREATE TABLE equipment (
+                id INTEGER PRIMARY KEY,
+                customer_id INTEGER REFERENCES customers(id),
+                chassis_number VARCHAR(100),
+                machine_type VARCHAR(100),
+                model_name VARCHAR(100),
+                purchase_date DATETIME,
+                memo TEXT,
+                created_at DATETIME
+            )
+        """)
+        print("OK equipment 테이블 생성")
+
     if "company_settings" not in existing_tables:
         cur.execute("""
             CREATE TABLE company_settings (
@@ -130,6 +145,22 @@ def migrate():
         if col_name not in existing_cols:
             cur.execute(f"ALTER TABLE maintenance_orders ADD COLUMN {col_name} {col_def}")
             print(f"OK maintenance_orders.{col_name} 컬럼 추가")
+
+    # ── products 컬럼 추가 ───────────────────────────────────────
+
+    cur.execute("PRAGMA table_info(products)")
+    existing_product_cols = {row[1] for row in cur.fetchall()}
+
+    product_cols = [
+        ("model",           "VARCHAR(200)"),
+        ("dealer_price",    "REAL DEFAULT 0"),
+        ("center_price",    "REAL DEFAULT 0"),
+        ("consumer_price",  "REAL DEFAULT 0"),
+    ]
+    for col_name, col_def in product_cols:
+        if col_name not in existing_product_cols:
+            cur.execute(f"ALTER TABLE products ADD COLUMN {col_name} {col_def}")
+            print(f"OK products.{col_name} 컬럼 추가")
 
     # ── maintenance_parts 컬럼 추가 ──────────────────────────────
 

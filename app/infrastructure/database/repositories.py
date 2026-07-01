@@ -17,6 +17,8 @@ from app.domain.fieldtrip.entity import FieldTrip
 from app.domain.fieldtrip.repository import IFieldTripRepository
 from app.domain.estimate.entity import Estimate, EstimateItem
 from app.domain.estimate.repository import IEstimateRepository
+from app.domain.equipment.entity import Equipment
+from app.domain.equipment.repository import IEquipmentRepository
 from app.infrastructure.database.session import get_db
 from app.infrastructure.database.orm import (
     Customer as ORM_Customer,
@@ -31,6 +33,7 @@ from app.infrastructure.database.orm import (
     FieldTrip as ORM_FieldTrip,
     Estimate as ORM_Estimate,
     EstimateItem as ORM_EstimateItem,
+    Equipment as ORM_Equipment,
 )
 
 
@@ -82,8 +85,12 @@ def _m_settings(o: ORM_Settings) -> CompanySettings:
 
 def _m_product(o: ORM_Product) -> Product:
     return Product(id=o.id, name=o.name, code=o.code, category=o.category,
+                   model=o.model,
                    stock_quantity=o.stock_quantity, min_stock_quantity=o.min_stock_quantity,
-                   unit_price=o.unit_price)
+                   unit_price=o.unit_price or 0,
+                   dealer_price=o.dealer_price or 0,
+                   center_price=o.center_price or 0,
+                   consumer_price=o.consumer_price or 0)
 
 def _m_fieldtrip(o: ORM_FieldTrip) -> FieldTrip:
     return FieldTrip(id=o.id, customer_id=o.customer_id,
@@ -201,14 +208,22 @@ class SqlProductRepository(IProductRepository):
             o.name = product.name
             o.code = product.code
             o.category = product.category
+            o.model = product.model
             o.stock_quantity = product.stock_quantity
             o.min_stock_quantity = product.min_stock_quantity
             o.unit_price = product.unit_price
+            o.dealer_price = product.dealer_price
+            o.center_price = product.center_price
+            o.consumer_price = product.consumer_price
         else:
             o = ORM_Product(name=product.name, code=product.code, category=product.category,
+                            model=product.model,
                             stock_quantity=product.stock_quantity,
                             min_stock_quantity=product.min_stock_quantity,
-                            unit_price=product.unit_price)
+                            unit_price=product.unit_price,
+                            dealer_price=product.dealer_price,
+                            center_price=product.center_price,
+                            consumer_price=product.consumer_price)
             self.db.add(o)
         self.db.flush()
         return _m_product(o)
@@ -504,6 +519,57 @@ class SqlEstimateRepository(IEstimateRepository):
             self.db.flush()
 
 
+# ── Equipment ─────────────────────────────────────────────────────────────────
+
+def _m_equipment(o: ORM_Equipment) -> Equipment:
+    return Equipment(id=o.id, customer_id=o.customer_id, chassis_number=o.chassis_number,
+                     machine_type=o.machine_type, model_name=o.model_name,
+                     purchase_date=o.purchase_date, memo=o.memo)
+
+
+class SqlEquipmentRepository(IEquipmentRepository):
+    def __init__(self, db: Session):
+        self.db = db
+
+    def get(self, id: int) -> Optional[Equipment]:
+        o = self.db.query(ORM_Equipment).filter(ORM_Equipment.id == id).first()
+        return _m_equipment(o) if o else None
+
+    def list(self) -> List[Equipment]:
+        return [_m_equipment(o) for o in self.db.query(ORM_Equipment).order_by(ORM_Equipment.id.desc()).all()]
+
+    def find_by_chassis(self, chassis_number: str) -> List[Equipment]:
+        return [_m_equipment(o) for o in
+                self.db.query(ORM_Equipment).filter(ORM_Equipment.chassis_number.contains(chassis_number)).all()]
+
+    def find_by_customer(self, customer_id: int) -> List[Equipment]:
+        return [_m_equipment(o) for o in
+                self.db.query(ORM_Equipment).filter(ORM_Equipment.customer_id == customer_id).all()]
+
+    def save(self, eq: Equipment) -> Equipment:
+        if eq.id:
+            o = self.db.query(ORM_Equipment).filter(ORM_Equipment.id == eq.id).first()
+            o.customer_id = eq.customer_id
+            o.chassis_number = eq.chassis_number
+            o.machine_type = eq.machine_type
+            o.model_name = eq.model_name
+            o.purchase_date = eq.purchase_date
+            o.memo = eq.memo
+        else:
+            o = ORM_Equipment(customer_id=eq.customer_id, chassis_number=eq.chassis_number,
+                              machine_type=eq.machine_type, model_name=eq.model_name,
+                              purchase_date=eq.purchase_date, memo=eq.memo)
+            self.db.add(o)
+        self.db.flush()
+        return _m_equipment(o)
+
+    def delete(self, id: int) -> None:
+        o = self.db.query(ORM_Equipment).filter(ORM_Equipment.id == id).first()
+        if o:
+            self.db.delete(o)
+            self.db.flush()
+
+
 # ── FastAPI DI 팩토리 ─────────────────────────────────────────────────────────
 
 def get_customer_repo(db: Session = Depends(get_db)) -> ICustomerRepository:
@@ -520,6 +586,9 @@ def get_maintenance_repo(db: Session = Depends(get_db)) -> IMaintenanceRepositor
 
 def get_settings_repo(db: Session = Depends(get_db)) -> ISettingsRepository:
     return SqlSettingsRepository(db)
+
+def get_equipment_repo(db: Session = Depends(get_db)) -> IEquipmentRepository:
+    return SqlEquipmentRepository(db)
 
 def get_fieldtrip_repo(db: Session = Depends(get_db)) -> IFieldTripRepository:
     return SqlFieldTripRepository(db)

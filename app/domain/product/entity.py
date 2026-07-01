@@ -8,9 +8,13 @@ class Product:
     id: Optional[int] = None
     code: Optional[str] = None
     category: Optional[str] = None
+    model: Optional[str] = None
     stock_quantity: int = 0
     min_stock_quantity: int = 0
     unit_price: float = 0
+    dealer_price: float = 0
+    center_price: float = 0
+    consumer_price: float = 0
 
     @property
     def is_low_stock(self) -> bool:
