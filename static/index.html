@@ -201,6 +201,7 @@
       <div class="sidebar-section">재고</div>
       <ul class="nav flex-column">
         <li><a class="nav-link" href="#" data-section="inventory"><i class="bi bi-box-seam"></i>부품재고</a></li>
+        <li><a class="nav-link" href="#" data-section="equipment"><i class="bi bi-truck"></i>장비관리</a></li>
       </ul>
       <div class="sidebar-section">시스템</div>
       <ul class="nav flex-column">
@@ -459,7 +460,11 @@
       <div id="section-inventory" class="section">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <span class="fw-bold">부품재고관리</span>
-          <button class="btn-purple" onclick="openProductModal()"><i class="bi bi-plus-lg"></i>부품 등록</button>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('excel-upload-input').click()"><i class="bi bi-file-earmark-excel"></i> 엑셀 가져오기</button>
+            <input type="file" id="excel-upload-input" accept=".xlsx,.xlsm" style="display:none" onchange="importExcel(this)">
+            <button class="btn-purple" onclick="openProductModal()"><i class="bi bi-plus-lg"></i>부품 등록</button>
+          </div>
         </div>
         <div id="low-stock-alert" class="alert alert-warning d-none small py-2 mb-3">
           <i class="bi bi-exclamation-triangle me-1"></i><strong>재고 부족 품목:</strong> <span id="low-stock-names"></span>
@@ -467,8 +472,28 @@
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
-              <thead><tr><th>부품명</th><th>코드</th><th>분류</th><th>재고</th><th>최소재고</th><th>단가</th><th>작업</th></tr></thead>
-              <tbody id="inventory-list"><tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr></tbody>
+              <thead><tr><th>부품명</th><th>코드</th><th>분류</th><th>모델</th><th>재고</th><th>최소재고</th><th>매입단가</th><th>대리점가</th><th>센터가</th><th>소비자가</th><th>작업</th></tr></thead>
+              <tbody id="inventory-list"><tr><td colspan="11" class="text-center text-muted py-4 small">데이터 없음</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════ 장비관리 -->
+      <div id="section-equipment" class="section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="fw-bold">장비관리</span>
+          <button class="btn-purple" onclick="openEquipmentModal()"><i class="bi bi-plus-lg"></i>장비 등록</button>
+        </div>
+        <div class="mb-3 d-flex gap-2" style="max-width:420px">
+          <input type="text" class="form-control form-control-sm" id="chassis-search-input" placeholder="차대번호 검색" oninput="searchByChassis()">
+        </div>
+        <div id="chassis-search-results"></div>
+        <div class="erp-card">
+          <div class="p-0">
+            <table class="erp-table">
+              <thead><tr><th>차대번호</th><th>기종</th><th>모델명</th><th>고객</th><th>구입일</th><th>메모</th><th>작업</th></tr></thead>
+              <tbody id="equipment-list"><tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -911,7 +936,7 @@
 <!-- ════════════════════════════════════════════════
      MODAL: 고객 검색 피커
 ════════════════════════════════════════════════ -->
-<div class="modal fade" id="customerPickerModal" tabindex="-1">
+<div class="modal fade" id="customerPickerModal" tabindex="-1" style="z-index:1075">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -936,7 +961,7 @@
 <!-- ════════════════════════════════════════════════
      MODAL: 재고상품 검색 피커
 ════════════════════════════════════════════════ -->
-<div class="modal fade" id="productPickerModal" tabindex="-1">
+<div class="modal fade" id="productPickerModal" tabindex="-1" style="z-index:1075">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -1079,6 +1104,107 @@
 
 
 <!-- ════════════════════════════════════════════════
+     MODAL: 고객 상세
+════════════════════════════════════════════════ -->
+<div class="modal fade" id="customerDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold"><i class="bi bi-person-lines-fill me-2" style="color:var(--primary)"></i><span id="cd-customer-name"></span> 고객 상세</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <ul class="nav nav-tabs px-3 pt-2" id="customerDetailTabs">
+          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#cd-tab-info">기본정보</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#cd-tab-equipment">보유장비</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#cd-tab-sales">판매이력</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#cd-tab-maintenance">정비이력</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#cd-tab-fieldtrip">출장이력</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#cd-tab-unpaid">미수금 <span id="cd-unpaid-badge" class="badge bg-danger ms-1" style="display:none"></span></a></li>
+        </ul>
+        <div class="tab-content p-3">
+          <div class="tab-pane fade show active" id="cd-tab-info">
+            <table class="table table-sm table-borderless" style="max-width:400px">
+              <tr><th class="text-muted small" style="width:80px">전화</th><td id="cd-phone">-</td></tr>
+              <tr><th class="text-muted small">주소</th><td id="cd-address">-</td></tr>
+              <tr><th class="text-muted small">메모</th><td id="cd-memo">-</td></tr>
+            </table>
+          </div>
+          <div class="tab-pane fade" id="cd-tab-equipment">
+            <div id="cd-equipment-body"></div>
+          </div>
+          <div class="tab-pane fade" id="cd-tab-sales">
+            <div id="cd-sales-body"></div>
+          </div>
+          <div class="tab-pane fade" id="cd-tab-maintenance">
+            <div id="cd-maintenance-body"></div>
+          </div>
+          <div class="tab-pane fade" id="cd-tab-fieldtrip">
+            <div id="cd-fieldtrip-body"></div>
+          </div>
+          <div class="tab-pane fade" id="cd-tab-unpaid">
+            <div id="cd-unpaid-body"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL: 장비 등록/수정
+════════════════════════════════════════════════ -->
+<div class="modal fade" id="equipmentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold"><i class="bi bi-truck me-2" style="color:var(--primary)"></i><span id="eq-modal-title">장비 등록</span></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="eq-edit-id">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label small fw-semibold">차대번호</label>
+            <input type="text" class="form-control form-control-sm" id="eq-chassis">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">기종</label>
+            <input type="text" class="form-control form-control-sm" id="eq-machine-type" placeholder="예: 트랙터, 이앙기">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">모델명</label>
+            <input type="text" class="form-control form-control-sm" id="eq-model-name">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">고객</label>
+            <div class="input-group input-group-sm">
+              <input type="hidden" id="eq-customer-id">
+              <input type="text" class="form-control form-control-sm" id="eq-customer-name" placeholder="고객 검색" readonly style="cursor:pointer;background:#fff" onclick="openCustomerPicker('equipment')">
+              <button class="btn btn-outline-secondary" type="button" onclick="openCustomerPicker('equipment')"><i class="bi bi-search"></i></button>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">구입일</label>
+            <input type="date" class="form-control form-control-sm" id="eq-purchase-date">
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">메모</label>
+            <input type="text" class="form-control form-control-sm" id="eq-memo">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn-purple" onclick="saveEquipment()"><i class="bi bi-check-lg"></i>저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
      Toast
 ════════════════════════════════════════════════ -->
 <div id="toast-wrap" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
@@ -1122,7 +1248,7 @@ function toast(msg, ok = true) {
 const SECTION_NAMES = {
   dashboard:'대시보드', estimates:'견적서', 'sales-implement':'작업기 판매내역', 'sales-tractor':'트랙터 판매내역',
   customers:'고객관리', maintenance:'정비관리', fieldtrip:'출장관리',
-  inventory:'부품재고', settings:'설정',
+  inventory:'부품재고', equipment:'장비관리', settings:'설정',
 };
 
 function switchSection(name) {
@@ -1139,6 +1265,7 @@ function switchSection(name) {
   if (name === 'maintenance') loadMaintenance();
   if (name === 'fieldtrip') loadFieldtrips();
   if (name === 'inventory') loadInventory();
+  if (name === 'equipment') loadEquipment();
   if (name === 'settings') loadSettings();
 }
 
@@ -1194,7 +1321,7 @@ async function loadDashboard() {
 
 // ─── Sale Modal ───────────────────────────────────────────────────
 let _saleModal, _repairModal, _customerModal, _customerPickerModal, _estimateModal, _estimateDetailModal;
-let _productPickerModal;
+let _productPickerModal, _customerDetailModal, _equipmentModal;
 let _pickerTarget = null;
 let _currentEstimate = null;
 
@@ -1206,6 +1333,8 @@ document.addEventListener('DOMContentLoaded', () => {
   _estimateModal      = new bootstrap.Modal(document.getElementById('estimateModal'));
   _estimateDetailModal= new bootstrap.Modal(document.getElementById('estimateDetailModal'));
   _productPickerModal = new bootstrap.Modal(document.getElementById('productPickerModal'));
+  _customerDetailModal= new bootstrap.Modal(document.getElementById('customerDetailModal'));
+  _equipmentModal     = new bootstrap.Modal(document.getElementById('equipmentModal'));
 
   const d = new Date();
   document.getElementById('topbar-date').textContent =
@@ -1382,7 +1511,8 @@ async function loadCustomers(q = '') {
     document.getElementById('customer-list').innerHTML = list.length
       ? list.map(c => `
           <tr>
-            <td class="fw-semibold">${c.name}</td>
+            <td class="fw-semibold" style="cursor:pointer;color:var(--primary)"
+                onclick="openCustomerDetail(${c.id})">${c.name}</td>
             <td>${c.phone || '-'}</td>
             <td>${c.address || '-'}</td>
             <td>${c.memo || '-'}</td>
@@ -1416,6 +1546,11 @@ function openCustomerPicker(target) {
   document.getElementById('picker-search').value = '';
   document.getElementById('picker-results').innerHTML = '';
   _customerPickerModal.show();
+  // backdrop을 modal 위로 올림 (다른 modal 위에 picker가 뜰 때)
+  requestAnimationFrame(() => {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    if (backdrops.length > 0) backdrops[backdrops.length - 1].style.zIndex = '1070';
+  });
   searchPicker();
 }
 
@@ -1449,6 +1584,7 @@ function selectCustomer(id, name) {
     repair:    ['repair-customer-id','repair-customer-name'],
     fieldtrip: ['ft-customer-id','ft-customer-name'],
     estimate:  ['est-customer-id','est-contractor'],
+    equipment: ['eq-customer-id','eq-customer-name'],
   };
   const [idField, nameField] = targets[_pickerTarget] || [];
   if (idField) { document.getElementById(idField).value = parseInt(id); document.getElementById(nameField).value = name; }
@@ -1464,6 +1600,10 @@ function openProductPicker(rowEl, context) {
   document.getElementById('product-picker-search').value = '';
   document.getElementById('product-picker-results').innerHTML = '';
   _productPickerModal.show();
+  requestAnimationFrame(() => {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    if (backdrops.length > 0) backdrops[backdrops.length - 1].style.zIndex = '1070';
+  });
   searchProductPicker();
 }
 
@@ -1823,6 +1963,21 @@ async function updateFieldtrip(id, status) {
 // ─── Inventory ────────────────────────────────────────────────────
 let _productModal, _stockModal, _stockProductId;
 
+async function importExcel(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/inventory/import-excel', { method: 'POST', body: fd });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || '가져오기 실패'); }
+    const r = await res.json();
+    toast(`엑셀 가져오기 완료 — 신규: ${r.created}건, 업데이트: ${r.updated}건, 중복스킵: ${r.skipped}건`);
+    loadInventory();
+  } catch(e) { toast(e.message, false); }
+}
+
 async function loadInventory() {
   try {
     const list = await api('GET', '/api/inventory');
@@ -1832,14 +1987,18 @@ async function loadInventory() {
             <td class="fw-semibold">${p.name}${p.is_low_stock ? ' <span class="badge-s s-취소" style="font-size:.65rem">부족</span>' : ''}</td>
             <td>${p.code || '-'}</td>
             <td>${p.category || '-'}</td>
+            <td class="text-muted small">${p.model || '-'}</td>
             <td class="${p.is_low_stock ? 'text-danger fw-bold' : ''}">${p.stock_quantity}</td>
             <td>${p.min_stock_quantity}</td>
             <td>${fmt(p.unit_price)}</td>
+            <td>${fmt(p.dealer_price)}</td>
+            <td>${fmt(p.center_price)}</td>
+            <td>${fmt(p.consumer_price)}</td>
             <td>
               <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.73rem" onclick="openStockModal(${p.id},'${p.name.replace(/'/g,"\\'")}')">입/출고</button>
             </td>
           </tr>`).join('')
-      : '<tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+      : '<tr><td colspan="11" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
 
     const low = list.filter(p => p.is_low_stock);
     const la = document.getElementById('low-stock-alert');
@@ -2122,6 +2281,209 @@ document.getElementById('overlay').addEventListener('click', closeSidebar);
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
+}
+
+// ─── Customer Detail ──────────────────────────────────────────────
+async function openCustomerDetail(customerId) {
+  try {
+    const d = await api('GET', `/api/customers/${customerId}/detail`);
+    document.getElementById('cd-customer-name').textContent = d.customer.name;
+    document.getElementById('cd-phone').textContent = d.customer.phone || '-';
+    document.getElementById('cd-address').textContent = d.customer.address || '-';
+    document.getElementById('cd-memo').textContent = d.customer.memo || '-';
+
+    // 보유장비
+    document.getElementById('cd-equipment-body').innerHTML = d.equipment.length
+      ? `<table class="erp-table"><thead><tr><th>차대번호</th><th>기종</th><th>모델명</th><th>구입일</th></tr></thead><tbody>
+          ${d.equipment.map(e => `<tr><td>${e.chassis_number||'-'}</td><td>${e.machine_type||'-'}</td><td>${e.model_name||'-'}</td><td>${e.purchase_date?e.purchase_date.slice(0,10):'-'}</td></tr>`).join('')}
+         </tbody></table>`
+      : '<p class="text-muted small py-2">보유 장비 없음</p>';
+
+    // 판매이력
+    document.getElementById('cd-sales-body').innerHTML = d.sales.length
+      ? d.sales.map(s => `
+          <div class="border rounded p-2 mb-2 small">
+            <div class="fw-semibold">${s.sale_date?s.sale_date.slice(0,10):'-'} ${s.machine_category||''}</div>
+            ${s.items.map(i=>`<div class="text-muted">${i.product_name||''} ${i.model_name||''} — ${fmt(i.total_amount)}</div>`).join('')}
+          </div>`).join('')
+      : '<p class="text-muted small py-2">판매 이력 없음</p>';
+
+    // 정비이력
+    document.getElementById('cd-maintenance-body').innerHTML = d.maintenances.length
+      ? `<table class="erp-table"><thead><tr><th>접수일</th><th>기종</th><th>기계번호</th><th>증상</th><th>상태</th><th>수리금액</th><th>미수</th></tr></thead><tbody>
+          ${d.maintenances.map(m=>`<tr>
+            <td>${m.received_date?m.received_date.slice(0,10):'-'}</td>
+            <td>${m.machine_type||'-'}</td><td>${m.machine_number||'-'}</td>
+            <td>${m.symptom||'-'}</td><td>${badge(m.status)}</td>
+            <td>${fmt(m.total_amount)}</td>
+            <td class="${m.unpaid>0?'text-danger fw-bold':''}">${m.unpaid>0?fmt(m.unpaid):'-'}</td>
+          </tr>`).join('')}
+         </tbody></table>`
+      : '<p class="text-muted small py-2">정비 이력 없음</p>';
+
+    // 출장이력
+    document.getElementById('cd-fieldtrip-body').innerHTML = d.field_trips.length
+      ? `<table class="erp-table"><thead><tr><th>일정</th><th>목적</th><th>상태</th><th>결과</th></tr></thead><tbody>
+          ${d.field_trips.map(ft=>`<tr>
+            <td>${ft.scheduled_date?ft.scheduled_date.slice(0,10):'-'}</td>
+            <td>${ft.purpose||'-'}</td><td>${badge(ft.status)}</td><td>${ft.result||'-'}</td>
+          </tr>`).join('')}
+         </tbody></table>`
+      : '<p class="text-muted small py-2">출장 이력 없음</p>';
+
+    // 미수금
+    const unpaidBadge = document.getElementById('cd-unpaid-badge');
+    if (d.total_unpaid > 0) {
+      unpaidBadge.textContent = fmt(d.total_unpaid);
+      unpaidBadge.style.display = '';
+    } else {
+      unpaidBadge.style.display = 'none';
+    }
+    const unpaidRows = d.maintenances.filter(m => m.unpaid > 0);
+    document.getElementById('cd-unpaid-body').innerHTML = unpaidRows.length
+      ? `<div class="fw-bold text-danger mb-2">총 미수금: ${fmt(d.total_unpaid)}</div>
+         <table class="erp-table"><thead><tr><th>접수일</th><th>기종</th><th>수리금액</th><th>수납</th><th>미수</th></tr></thead><tbody>
+          ${unpaidRows.map(m=>`<tr>
+            <td>${m.received_date?m.received_date.slice(0,10):'-'}</td>
+            <td>${m.machine_type||'-'}</td>
+            <td>${fmt(m.total_amount)}</td><td>${fmt(m.paid)}</td>
+            <td class="text-danger fw-bold">${fmt(m.unpaid)}</td>
+          </tr>`).join('')}
+         </tbody></table>`
+      : '<p class="text-muted small py-2">미수금 없음</p>';
+
+    // 첫 탭 활성화
+    document.querySelector('#customerDetailTabs .nav-link.active')?.classList.remove('active');
+    document.querySelector('#customerDetailTabs .nav-link')?.classList.add('active');
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show','active'));
+    document.getElementById('cd-tab-info')?.classList.add('show','active');
+
+    _customerDetailModal.show();
+  } catch(e) { toast(e.message, false); }
+}
+
+// ─── Equipment ────────────────────────────────────────────────────
+let _equipmentCustomers = [];
+
+async function loadEquipment() {
+  try {
+    const [list, customers] = await Promise.all([
+      api('GET', '/api/equipment'),
+      api('GET', '/api/customers?q='),
+    ]);
+    _equipmentCustomers = customers;
+    const custMap = Object.fromEntries(customers.map(c => [c.id, c.name]));
+    document.getElementById('equipment-list').innerHTML = list.length
+      ? list.map(e => `
+          <tr>
+            <td class="fw-semibold">${e.chassis_number||'-'}</td>
+            <td>${e.machine_type||'-'}</td>
+            <td>${e.model_name||'-'}</td>
+            <td>${e.customer_id ? (custMap[e.customer_id]||'-') : '-'}</td>
+            <td>${e.purchase_date?e.purchase_date.slice(0,10):'-'}</td>
+            <td>${e.memo||'-'}</td>
+            <td class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.73rem"
+                onclick='openEquipmentEditModal(${JSON.stringify(e)})'>수정</button>
+              <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.73rem"
+                onclick="deleteEquipment(${e.id})">삭제</button>
+            </td>
+          </tr>`).join('')
+      : '<tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+    document.getElementById('chassis-search-results').innerHTML = '';
+    document.getElementById('chassis-search-input').value = '';
+  } catch(e) { toast(e.message, false); }
+}
+
+function openEquipmentModal() {
+  document.getElementById('eq-modal-title').textContent = '장비 등록';
+  document.getElementById('eq-edit-id').value = '';
+  ['eq-chassis','eq-machine-type','eq-model-name','eq-memo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('eq-customer-id').value = '';
+  document.getElementById('eq-customer-name').value = '';
+  document.getElementById('eq-purchase-date').value = '';
+  _equipmentModal.show();
+}
+
+function openEquipmentEditModal(e) {
+  document.getElementById('eq-modal-title').textContent = '장비 수정';
+  document.getElementById('eq-edit-id').value = e.id;
+  document.getElementById('eq-chassis').value = e.chassis_number || '';
+  document.getElementById('eq-machine-type').value = e.machine_type || '';
+  document.getElementById('eq-model-name').value = e.model_name || '';
+  document.getElementById('eq-memo').value = e.memo || '';
+  document.getElementById('eq-purchase-date').value = e.purchase_date ? e.purchase_date.slice(0,10) : '';
+  const custMap = Object.fromEntries(_equipmentCustomers.map(c => [c.id, c.name]));
+  document.getElementById('eq-customer-id').value = e.customer_id || '';
+  document.getElementById('eq-customer-name').value = e.customer_id ? (custMap[e.customer_id]||'') : '';
+  _equipmentModal.show();
+}
+
+async function saveEquipment() {
+  const editId = document.getElementById('eq-edit-id').value;
+  const body = {
+    chassis_number: document.getElementById('eq-chassis').value.trim() || null,
+    machine_type:   document.getElementById('eq-machine-type').value.trim() || null,
+    model_name:     document.getElementById('eq-model-name').value.trim() || null,
+    customer_id:    parseInt(document.getElementById('eq-customer-id').value) || null,
+    purchase_date:  document.getElementById('eq-purchase-date').value || null,
+    memo:           document.getElementById('eq-memo').value.trim() || null,
+  };
+  try {
+    editId
+      ? await api('PATCH', `/api/equipment/${editId}`, body)
+      : await api('POST', '/api/equipment', body);
+    _equipmentModal.hide();
+    toast(editId ? '장비가 수정되었습니다' : '장비가 등록되었습니다');
+    loadEquipment();
+  } catch(e) { toast(e.message, false); }
+}
+
+async function deleteEquipment(id) {
+  if (!confirm('장비를 삭제하시겠습니까?')) return;
+  try {
+    await api('DELETE', `/api/equipment/${id}`);
+    toast('장비가 삭제되었습니다');
+    loadEquipment();
+  } catch(e) { toast(e.message, false); }
+}
+
+let _chassisSearchTimer;
+function searchByChassis() {
+  clearTimeout(_chassisSearchTimer);
+  _chassisSearchTimer = setTimeout(async () => {
+    const q = document.getElementById('chassis-search-input').value.trim();
+    if (!q) { document.getElementById('chassis-search-results').innerHTML = ''; return; }
+    try {
+      const results = await api('GET', `/api/equipment/search?q=${encodeURIComponent(q)}`);
+      if (!results.length) {
+        document.getElementById('chassis-search-results').innerHTML = '<p class="text-muted small">검색 결과 없음</p>';
+        return;
+      }
+      document.getElementById('chassis-search-results').innerHTML = results.map(r => `
+        <div class="erp-card mb-3">
+          <div class="erp-card-header d-flex justify-content-between">
+            <span>차대번호: <strong>${r.equipment.chassis_number||'-'}</strong> / ${r.equipment.machine_type||''} ${r.equipment.model_name||''}</span>
+            ${r.customer ? `<span class="text-muted small">${r.customer.name} (${r.customer.phone||'-'})</span>` : ''}
+          </div>
+          <div class="erp-card-body p-2">
+            ${r.total_unpaid > 0 ? `<div class="text-danger fw-bold small mb-2">미수금: ${fmt(r.total_unpaid)}</div>` : ''}
+            ${r.maintenances.length ? `
+              <div class="small fw-semibold mb-1">정비이력 (${r.maintenances.length}건)</div>
+              <table class="erp-table mb-2"><thead><tr><th>접수일</th><th>증상</th><th>상태</th><th>미수</th></tr></thead><tbody>
+                ${r.maintenances.map(m=>`<tr>
+                  <td>${m.received_date?m.received_date.slice(0,10):'-'}</td>
+                  <td>${m.symptom||'-'}</td><td>${badge(m.status)}</td>
+                  <td class="${m.unpaid>0?'text-danger':''}">${m.unpaid>0?fmt(m.unpaid):'-'}</td>
+                </tr>`).join('')}
+              </tbody></table>` : ''}
+            ${r.sales.length ? `
+              <div class="small fw-semibold mb-1">판매이력 (${r.sales.length}건)</div>
+              ${r.sales.map(s=>`<div class="small text-muted">${s.sale_date?s.sale_date.slice(0,10):''} ${s.machine_category||''} ${s.items.map(i=>i.model_name||i.product_name).join(', ')}</div>`).join('')}` : ''}
+          </div>
+        </div>`).join('');
+    } catch(e) {}
+  }, 400);
 }
 
 // ─── Bootstrap btn-purple / btn-green class ───────────────────────
