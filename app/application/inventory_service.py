@@ -1,7 +1,14 @@
+import threading
 from fastapi import Depends, HTTPException, UploadFile
 from app.domain.product.entity import Product
 from app.domain.product.repository import IProductRepository
-from app.infrastructure.database.repositories import get_product_repo
+from app.infrastructure.database.repositories import get_product_repo, SqlProductRepository
+from app.infrastructure.database.session import SessionLocal
+
+_import_progress = {
+    "running": False, "total": 0, "processed": 0,
+    "created": 0, "updated": 0, "skipped": 0, "done": True, "error": None,
+}
 
 
 class InventoryService:
@@ -34,7 +41,7 @@ class InventoryService:
     def search(self, q: str, limit: int = 30) -> list:
         q = (q or "").strip()
         if not q:
-            return []
+            return [self._to_dict(p) for p in self.repo.recent(limit)]
         return [self._to_dict(p) for p in self.repo.search(q, limit)]
 
     def update(self, product_id: int, **kwargs) -> dict:
@@ -64,54 +71,76 @@ class InventoryService:
     def find_low_stock(self) -> list:
         return [self._to_dict(p) for p in self.repo.find_low_stock()]
 
-    def import_from_excel(self, file_bytes: bytes) -> dict:
+    def start_import(self, file_bytes: bytes) -> dict:
+        if _import_progress["running"]:
+            raise HTTPException(409, "이미 엑셀 가져오기가 진행 중입니다")
         import openpyxl, io
         wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
         ws = wb["복사 붙혀넣기"]
+        total = max(ws.max_row - 2, 0)  # min_row=3 기준
+        _import_progress.update(running=True, total=total, processed=0,
+                                 created=0, updated=0, skipped=0, done=False, error=None)
+        threading.Thread(target=self._run_import, args=(file_bytes,), daemon=True).start()
+        return {"started": True, "total": total}
 
-        created = 0
-        updated = 0
-        skipped = 0
-        seen_codes = set()
+    def get_import_progress(self) -> dict:
+        return dict(_import_progress)
 
-        for row in ws.iter_rows(min_row=3, values_only=True):
-            code = row[1]
-            old_code = row[2]
-            name = row[3]
-            if not code or not name:
-                continue
-            code = str(code).strip()
-            old_code = str(old_code).strip() if old_code else None
-            name = str(name).strip()
-            if code in seen_codes:
-                skipped += 1
-                continue
-            seen_codes.add(code)
+    def _run_import(self, file_bytes: bytes) -> None:
+        import openpyxl, io
+        db = SessionLocal()
+        repo = SqlProductRepository(db)
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+            ws = wb["복사 붙혀넣기"]
+            seen_codes = set()
 
-            model = str(row[4]).strip() if row[4] else None
-            dealer_price = float(row[6]) if row[6] else 0.0
-            center_price = float(row[7]) if row[7] else 0.0
-            consumer_price = float(row[8]) if row[8] else 0.0
+            for i, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=1):
+                code = row[1]
+                old_code = row[2]
+                name = row[3]
+                if code and name:
+                    code = str(code).strip()
+                    old_code = str(old_code).strip() if old_code else None
+                    name = str(name).strip()
+                    if code in seen_codes:
+                        _import_progress["skipped"] += 1
+                    else:
+                        seen_codes.add(code)
+                        model = str(row[4]).strip() if row[4] else None
+                        dealer_price = float(row[6]) if row[6] else 0.0
+                        center_price = float(row[7]) if row[7] else 0.0
+                        consumer_price = float(row[8]) if row[8] else 0.0
 
-            existing = self.repo.find_by_code(code)
-            if existing:
-                existing.name = name
-                existing.old_code = old_code
-                existing.model = model
-                existing.dealer_price = dealer_price
-                existing.center_price = center_price
-                existing.consumer_price = consumer_price
-                self.repo.save(existing)
-                updated += 1
-            else:
-                self.repo.save(Product(
-                    name=name, code=code, old_code=old_code, model=model,
-                    dealer_price=dealer_price,
-                    center_price=center_price, consumer_price=consumer_price,
-                ))
-                created += 1
+                        existing = repo.find_by_code(code)
+                        if existing:
+                            existing.name = name
+                            existing.old_code = old_code
+                            existing.model = model
+                            existing.dealer_price = dealer_price
+                            existing.center_price = center_price
+                            existing.consumer_price = consumer_price
+                            repo.save(existing)
+                            _import_progress["updated"] += 1
+                        else:
+                            repo.save(Product(
+                                name=name, code=code, old_code=old_code, model=model,
+                                dealer_price=dealer_price,
+                                center_price=center_price, consumer_price=consumer_price,
+                            ))
+                            _import_progress["created"] += 1
+                _import_progress["processed"] = i
+                if i % 200 == 0:
+                    db.commit()
 
-        return {"created": created, "updated": updated, "skipped": skipped}
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            _import_progress["error"] = str(e)
+        finally:
+            db.close()
+            _import_progress["running"] = False
+            _import_progress["done"] = True
 
     def _to_dict(self, p: Product) -> dict:
         return {**p.__dict__, "is_low_stock": p.is_low_stock}

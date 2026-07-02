@@ -201,7 +201,6 @@
       <div class="sidebar-section">재고</div>
       <ul class="nav flex-column">
         <li><a class="nav-link" href="#" data-section="inventory"><i class="bi bi-box-seam"></i>부품재고</a></li>
-        <li><a class="nav-link" href="#" data-section="equipment"><i class="bi bi-truck"></i>장비관리</a></li>
       </ul>
       <div class="sidebar-section">시스템</div>
       <ul class="nav flex-column">
@@ -471,8 +470,18 @@
         <div id="low-stock-alert" class="alert alert-warning d-none small py-2 mb-3">
           <i class="bi bi-exclamation-triangle me-1"></i><strong>재고 부족 품목:</strong> <span id="low-stock-names"></span>
         </div>
-        <input type="text" class="form-control form-control-sm mb-3" id="inventory-search"
+        <div id="import-progress-wrap" class="d-none mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span id="import-progress-label">엑셀 읽는 중...</span>
+            <span id="import-progress-count">0 / 0</span>
+          </div>
+          <div class="progress" style="height:8px">
+            <div id="import-progress-bar" class="progress-bar" style="width:0%"></div>
+          </div>
+        </div>
+        <input type="text" class="form-control form-control-sm mb-2" id="inventory-search"
                placeholder="품번, 기존품번 또는 부품명으로 검색" oninput="searchInventory()">
+        <div id="inventory-hint" class="text-muted small mb-2">최근 등록·수정된 부품입니다. 전체에서 찾으려면 검색하세요.</div>
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
@@ -483,25 +492,6 @@
         </div>
       </div>
 
-      <!-- ══════════════════════════════ 장비관리 -->
-      <div id="section-equipment" class="section">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <span class="fw-bold">장비관리</span>
-          <button class="btn-purple" onclick="openEquipmentModal()"><i class="bi bi-plus-lg"></i>장비 등록</button>
-        </div>
-        <div class="mb-3 d-flex gap-2" style="max-width:420px">
-          <input type="text" class="form-control form-control-sm" id="chassis-search-input" placeholder="차대번호 검색" oninput="searchByChassis()">
-        </div>
-        <div id="chassis-search-results"></div>
-        <div class="erp-card">
-          <div class="p-0">
-            <table class="erp-table">
-              <thead><tr><th>차대번호</th><th>기종</th><th>모델명</th><th>고객</th><th>구입일</th><th>메모</th><th>작업</th></tr></thead>
-              <tbody id="equipment-list"><tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
 
       <!-- ══════════════════════════════ 설정 -->
       <div id="section-settings" class="section">
@@ -1161,58 +1151,6 @@
 
 
 <!-- ════════════════════════════════════════════════
-     MODAL: 장비 등록/수정
-════════════════════════════════════════════════ -->
-<div class="modal fade" id="equipmentModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title fw-bold"><i class="bi bi-truck me-2" style="color:var(--primary)"></i><span id="eq-modal-title">장비 등록</span></h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="eq-edit-id">
-        <div class="row g-3">
-          <div class="col-12">
-            <label class="form-label small fw-semibold">차대번호</label>
-            <input type="text" class="form-control form-control-sm" id="eq-chassis">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">기종</label>
-            <input type="text" class="form-control form-control-sm" id="eq-machine-type" placeholder="예: 트랙터, 이앙기">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">모델명</label>
-            <input type="text" class="form-control form-control-sm" id="eq-model-name">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">고객</label>
-            <div class="input-group input-group-sm">
-              <input type="hidden" id="eq-customer-id">
-              <input type="text" class="form-control form-control-sm" id="eq-customer-name" placeholder="고객 검색" readonly style="cursor:pointer;background:#fff" onclick="openCustomerPicker('equipment')">
-              <button class="btn btn-outline-secondary" type="button" onclick="openCustomerPicker('equipment')"><i class="bi bi-search"></i></button>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">구입일</label>
-            <input type="date" class="form-control form-control-sm" id="eq-purchase-date">
-          </div>
-          <div class="col-12">
-            <label class="form-label small fw-semibold">메모</label>
-            <input type="text" class="form-control form-control-sm" id="eq-memo">
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
-        <button type="button" class="btn-purple" onclick="saveEquipment()"><i class="bi bi-check-lg"></i>저장</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ════════════════════════════════════════════════
      Toast
 ════════════════════════════════════════════════ -->
 <div id="toast-wrap" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
@@ -1256,7 +1194,7 @@ function toast(msg, ok = true) {
 const SECTION_NAMES = {
   dashboard:'대시보드', estimates:'견적서', 'sales-implement':'작업기 판매내역', 'sales-tractor':'트랙터 판매내역',
   customers:'고객관리', maintenance:'정비관리', fieldtrip:'출장관리',
-  inventory:'부품재고', equipment:'장비관리', settings:'설정',
+  inventory:'부품재고', settings:'설정',
 };
 
 let _dashboardInterval = null;
@@ -1276,7 +1214,6 @@ function switchSection(name) {
   if (name === 'maintenance') loadMaintenance();
   if (name === 'fieldtrip') loadFieldtrips();
   if (name === 'inventory') loadInventory();
-  if (name === 'equipment') loadEquipment();
   if (name === 'settings') loadSettings();
 }
 
@@ -1332,7 +1269,7 @@ async function loadDashboard() {
 
 // ─── Sale Modal ───────────────────────────────────────────────────
 let _saleModal, _repairModal, _customerModal, _customerPickerModal, _estimateModal, _estimateDetailModal;
-let _productPickerModal, _customerDetailModal, _equipmentModal;
+let _productPickerModal, _customerDetailModal;
 let _pickerTarget = null;
 let _currentEstimate = null;
 
@@ -1345,7 +1282,6 @@ document.addEventListener('DOMContentLoaded', () => {
   _estimateDetailModal= new bootstrap.Modal(document.getElementById('estimateDetailModal'));
   _productPickerModal = new bootstrap.Modal(document.getElementById('productPickerModal'));
   _customerDetailModal= new bootstrap.Modal(document.getElementById('customerDetailModal'));
-  _equipmentModal     = new bootstrap.Modal(document.getElementById('equipmentModal'));
 
   const d = new Date();
   document.getElementById('topbar-date').textContent =
@@ -1596,7 +1532,6 @@ function selectCustomer(id, name) {
     repair:    ['repair-customer-id','repair-customer-name'],
     fieldtrip: ['ft-customer-id','ft-customer-name'],
     estimate:  ['est-customer-id','est-contractor'],
-    equipment: ['eq-customer-id','eq-customer-name'],
   };
   const [idField, nameField] = targets[_pickerTarget] || [];
   if (idField) { document.getElementById(idField).value = parseInt(id); document.getElementById(nameField).value = name; }
@@ -1993,13 +1928,37 @@ async function importExcel(input) {
   if (!file) return;
   const fd = new FormData();
   fd.append('file', file);
+  const wrap = document.getElementById('import-progress-wrap');
+  document.getElementById('import-progress-label').textContent = '엑셀 읽는 중...';
+  document.getElementById('import-progress-count').textContent = '0 / 0';
+  document.getElementById('import-progress-bar').style.width = '0%';
+  wrap.classList.remove('d-none');
   try {
     const res = await fetch('/api/inventory/import-excel', { method: 'POST', body: fd });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail || '가져오기 실패'); }
-    const r = await res.json();
-    toast(`엑셀 가져오기 완료 — 신규: ${r.created}건, 업데이트: ${r.updated}건, 중복스킵: ${r.skipped}건`);
-    loadInventory();
-  } catch(e) { toast(e.message, false); }
+    pollImportProgress();
+  } catch(e) {
+    wrap.classList.add('d-none');
+    toast(e.message, false);
+  }
+}
+
+function pollImportProgress() {
+  const timer = setInterval(async () => {
+    try {
+      const p = await api('GET', '/api/inventory/import-progress');
+      const pct = p.total ? Math.min(100, Math.round(p.processed / p.total * 100)) : 0;
+      document.getElementById('import-progress-bar').style.width = pct + '%';
+      document.getElementById('import-progress-count').textContent = `${p.processed} / ${p.total}`;
+      if (p.done) {
+        clearInterval(timer);
+        document.getElementById('import-progress-wrap').classList.add('d-none');
+        if (p.error) toast(`엑셀 가져오기 실패: ${p.error}`, false);
+        else toast(`엑셀 가져오기 완료 — 신규: ${p.created}건, 업데이트: ${p.updated}건, 중복스킵: ${p.skipped}건`);
+        loadInventory();
+      }
+    } catch(e) {}
+  }, 500);
 }
 
 let _inventorySearchTimer = null;
@@ -2010,14 +1969,9 @@ function searchInventory() {
 
 async function loadInventory() {
   const q = document.getElementById('inventory-search')?.value.trim() || '';
-  const tbody = document.getElementById('inventory-list');
-  if (!q) {
-    tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4 small">품번, 기존품번 또는 부품명을 검색하세요</td></tr>';
-    document.getElementById('low-stock-alert').classList.add('d-none');
-    return;
-  }
+  document.getElementById('inventory-hint').classList.toggle('d-none', !!q);
   try {
-    const list = await api('GET', `/api/inventory/search?q=${encodeURIComponent(q)}&limit=100`);
+    const list = await api('GET', `/api/inventory/search?q=${encodeURIComponent(q)}&limit=${q ? 100 : 50}`);
     document.getElementById('inventory-list').innerHTML = list.length
       ? list.map(p => `
           <tr class="${p.is_low_stock ? 'table-warning' : ''}">
@@ -2036,7 +1990,7 @@ async function loadInventory() {
               <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.73rem" onclick="openStockModal(${p.id},'${p.name.replace(/'/g,"\\'")}')">입/출고</button>
             </td>
           </tr>`).join('')
-      : '<tr><td colspan="12" class="text-center text-muted py-4 small">검색 결과 없음</td></tr>';
+      : `<tr><td colspan="12" class="text-center text-muted py-4 small">${q ? '검색 결과 없음' : '데이터 없음'}</td></tr>`;
 
     const low = list.filter(p => p.is_low_stock);
     const la = document.getElementById('low-stock-alert');
@@ -2399,130 +2353,6 @@ async function openCustomerDetail(customerId) {
 
     _customerDetailModal.show();
   } catch(e) { toast(e.message, false); }
-}
-
-// ─── Equipment ────────────────────────────────────────────────────
-let _equipmentCustomers = [];
-
-async function loadEquipment() {
-  try {
-    const [list, customers] = await Promise.all([
-      api('GET', '/api/equipment'),
-      api('GET', '/api/customers?q='),
-    ]);
-    _equipmentCustomers = customers;
-    const custMap = Object.fromEntries(customers.map(c => [c.id, c.name]));
-    document.getElementById('equipment-list').innerHTML = list.length
-      ? list.map(e => `
-          <tr>
-            <td class="fw-semibold">${e.chassis_number||'-'}</td>
-            <td>${e.machine_type||'-'}</td>
-            <td>${e.model_name||'-'}</td>
-            <td>${e.customer_id ? (custMap[e.customer_id]||'-') : '-'}</td>
-            <td>${e.purchase_date?e.purchase_date.slice(0,10):'-'}</td>
-            <td>${e.memo||'-'}</td>
-            <td class="d-flex gap-1">
-              <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.73rem"
-                onclick='openEquipmentEditModal(${JSON.stringify(e)})'>수정</button>
-              <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.73rem"
-                onclick="deleteEquipment(${e.id})">삭제</button>
-            </td>
-          </tr>`).join('')
-      : '<tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
-    document.getElementById('chassis-search-results').innerHTML = '';
-    document.getElementById('chassis-search-input').value = '';
-  } catch(e) { toast(e.message, false); }
-}
-
-function openEquipmentModal() {
-  document.getElementById('eq-modal-title').textContent = '장비 등록';
-  document.getElementById('eq-edit-id').value = '';
-  ['eq-chassis','eq-machine-type','eq-model-name','eq-memo'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('eq-customer-id').value = '';
-  document.getElementById('eq-customer-name').value = '';
-  document.getElementById('eq-purchase-date').value = '';
-  _equipmentModal.show();
-}
-
-function openEquipmentEditModal(e) {
-  document.getElementById('eq-modal-title').textContent = '장비 수정';
-  document.getElementById('eq-edit-id').value = e.id;
-  document.getElementById('eq-chassis').value = e.chassis_number || '';
-  document.getElementById('eq-machine-type').value = e.machine_type || '';
-  document.getElementById('eq-model-name').value = e.model_name || '';
-  document.getElementById('eq-memo').value = e.memo || '';
-  document.getElementById('eq-purchase-date').value = e.purchase_date ? e.purchase_date.slice(0,10) : '';
-  const custMap = Object.fromEntries(_equipmentCustomers.map(c => [c.id, c.name]));
-  document.getElementById('eq-customer-id').value = e.customer_id || '';
-  document.getElementById('eq-customer-name').value = e.customer_id ? (custMap[e.customer_id]||'') : '';
-  _equipmentModal.show();
-}
-
-async function saveEquipment() {
-  const editId = document.getElementById('eq-edit-id').value;
-  const body = {
-    chassis_number: document.getElementById('eq-chassis').value.trim() || null,
-    machine_type:   document.getElementById('eq-machine-type').value.trim() || null,
-    model_name:     document.getElementById('eq-model-name').value.trim() || null,
-    customer_id:    parseInt(document.getElementById('eq-customer-id').value) || null,
-    purchase_date:  document.getElementById('eq-purchase-date').value || null,
-    memo:           document.getElementById('eq-memo').value.trim() || null,
-  };
-  try {
-    editId
-      ? await api('PATCH', `/api/equipment/${editId}`, body)
-      : await api('POST', '/api/equipment', body);
-    _equipmentModal.hide();
-    toast(editId ? '장비가 수정되었습니다' : '장비가 등록되었습니다');
-    loadEquipment();
-  } catch(e) { toast(e.message, false); }
-}
-
-async function deleteEquipment(id) {
-  if (!confirm('장비를 삭제하시겠습니까?')) return;
-  try {
-    await api('DELETE', `/api/equipment/${id}`);
-    toast('장비가 삭제되었습니다');
-    loadEquipment();
-  } catch(e) { toast(e.message, false); }
-}
-
-let _chassisSearchTimer;
-function searchByChassis() {
-  clearTimeout(_chassisSearchTimer);
-  _chassisSearchTimer = setTimeout(async () => {
-    const q = document.getElementById('chassis-search-input').value.trim();
-    if (!q) { document.getElementById('chassis-search-results').innerHTML = ''; return; }
-    try {
-      const results = await api('GET', `/api/equipment/search?q=${encodeURIComponent(q)}`);
-      if (!results.length) {
-        document.getElementById('chassis-search-results').innerHTML = '<p class="text-muted small">검색 결과 없음</p>';
-        return;
-      }
-      document.getElementById('chassis-search-results').innerHTML = results.map(r => `
-        <div class="erp-card mb-3">
-          <div class="erp-card-header d-flex justify-content-between">
-            <span>차대번호: <strong>${r.equipment.chassis_number||'-'}</strong> / ${r.equipment.machine_type||''} ${r.equipment.model_name||''}</span>
-            ${r.customer ? `<span class="text-muted small">${r.customer.name} (${r.customer.phone||'-'})</span>` : ''}
-          </div>
-          <div class="erp-card-body p-2">
-            ${r.total_unpaid > 0 ? `<div class="text-danger fw-bold small mb-2">미수금: ${fmt(r.total_unpaid)}</div>` : ''}
-            ${r.maintenances.length ? `
-              <div class="small fw-semibold mb-1">정비이력 (${r.maintenances.length}건)</div>
-              <table class="erp-table mb-2"><thead><tr><th>접수일</th><th>증상</th><th>상태</th><th>미수</th></tr></thead><tbody>
-                ${r.maintenances.map(m=>`<tr>
-                  <td>${m.received_date?m.received_date.slice(0,10):'-'}</td>
-                  <td>${m.symptom||'-'}</td><td>${badge(m.status)}</td>
-                  <td class="${m.unpaid>0?'text-danger':''}">${m.unpaid>0?fmt(m.unpaid):'-'}</td>
-                </tr>`).join('')}
-              </tbody></table>` : ''}
-            ${r.sales.length ? `
-              <div class="small fw-semibold mb-1">판매이력 (${r.sales.length}건)</div>
-              ${r.sales.map(s=>`<div class="small text-muted">${s.sale_date?s.sale_date.slice(0,10):''} ${s.machine_category||''} ${s.items.map(i=>i.model_name||i.product_name).join(', ')}</div>`).join('')}` : ''}
-          </div>
-        </div>`).join('');
-    } catch(e) {}
-  }, 400);
 }
 
 // ─── Bootstrap btn-purple / btn-green class ───────────────────────

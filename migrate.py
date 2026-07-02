@@ -157,14 +157,17 @@ def migrate():
         ("center_price",    "REAL DEFAULT 0"),
         ("consumer_price",  "REAL DEFAULT 0"),
         ("old_code",        "VARCHAR(50)"),
+        ("updated_at",      "DATETIME"),
     ]
     for col_name, col_def in product_cols:
         if col_name not in existing_product_cols:
             cur.execute(f"ALTER TABLE products ADD COLUMN {col_name} {col_def}")
             print(f"OK products.{col_name} 컬럼 추가")
 
+    cur.execute("UPDATE products SET updated_at = created_at WHERE updated_at IS NULL")
     cur.execute("CREATE INDEX IF NOT EXISTS ix_products_old_code ON products(old_code)")
     cur.execute("CREATE INDEX IF NOT EXISTS ix_products_name ON products(name)")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_products_updated_at ON products(updated_at)")
 
     # ── maintenance_parts 컬럼 추가 ──────────────────────────────
 

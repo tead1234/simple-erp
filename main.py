@@ -22,7 +22,6 @@ from app.presentation.api.dashboard_router import router as dashboard_router
 from app.presentation.api.fieldtrip_router import router as fieldtrip_router
 from app.presentation.api.inventory_router import router as inventory_router
 from app.presentation.api.estimate_router import router as estimate_router
-from app.presentation.api.equipment_router import router as equipment_router
 
 
 async def _daily_backup():
@@ -51,7 +50,6 @@ app.include_router(dashboard_router)
 app.include_router(fieldtrip_router)
 app.include_router(inventory_router)
 app.include_router(estimate_router)
-app.include_router(equipment_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

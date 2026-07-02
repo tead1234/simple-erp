@@ -63,15 +63,18 @@ def create_product(data: ProductIn, svc: InventoryService = Depends(get_inventor
     return result
 
 
-@router.post("/import-excel", status_code=200)
-async def import_excel(file: UploadFile = File(...), svc: InventoryService = Depends(get_inventory_service), db: Session = Depends(get_db)):
+@router.post("/import-excel", status_code=202)
+async def import_excel(file: UploadFile = File(...), svc: InventoryService = Depends(get_inventory_service)):
     if not file.filename.endswith((".xlsx", ".xlsm")):
         from fastapi import HTTPException
         raise HTTPException(400, "xlsx 파일만 허용됩니다")
     contents = await file.read()
-    result = svc.import_from_excel(contents)
-    db.commit()
-    return result
+    return svc.start_import(contents)
+
+
+@router.get("/import-progress")
+def import_progress(svc: InventoryService = Depends(get_inventory_service)):
+    return svc.get_import_progress()
 
 
 @router.get("/{product_id}")
