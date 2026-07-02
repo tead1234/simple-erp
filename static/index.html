@@ -433,9 +433,9 @@
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
-              <thead><tr><th>접수일</th><th>고객명</th><th>기종</th><th>기계번호</th><th>상태</th><th>수리금액</th><th>미수금</th><th>작업</th></tr></thead>
+              <thead><tr><th>접수일</th><th>고객명</th><th>상태</th><th>수리금액</th><th>미수금</th><th>작업</th></tr></thead>
               <tbody id="maintenance-list">
-                <tr><td colspan="8" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
           </div>
@@ -1720,14 +1720,12 @@ async function loadMaintenance() {
           <tr>
             <td>${m.received_date?.slice(0,10) || '-'}</td>
             <td class="fw-semibold">${m.customer_name || '-'}</td>
-            <td>${m.machine_type || '-'}</td>
-            <td>${m.machine_number || '-'}</td>
             <td>${badge(m.status)}</td>
             <td>${fmt(m.total_amount)}</td>
             <td class="${m.receivable > 0 ? 'text-danger fw-semibold' : 'text-muted'}">${fmt(m.receivable)}</td>
             <td><button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem" onclick="openMaintenanceDetail(${m.id})">상세</button></td>
           </tr>`).join('')
-      : '<tr><td colspan="8" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+      : '<tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
   } catch (e) {}
 }
 
