@@ -15,6 +15,7 @@ class SaleItemIn(BaseModel):
     product_name: str
     model_name: Optional[str] = None
     product_code: Optional[str] = None
+    chassis_number: Optional[str] = None
     total_amount: float = 0
     loan_amount: float = 0
     loan_code: Optional[str] = None
@@ -70,11 +71,12 @@ class SaleIn(BaseModel):
 @router.get("")
 def list_sales(
     category: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
     svc: SaleService = Depends(get_sale_service),
 ):
     if category and category not in VALID_CATEGORIES:
         raise HTTPException(400, f"유효하지 않은 카테고리: {category}")
-    return svc.list(category)
+    return svc.list(category, q)
 
 
 @router.get("/{sale_id}")

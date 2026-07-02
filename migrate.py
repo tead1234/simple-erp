@@ -2,10 +2,12 @@
 기존 erp.db에 새 테이블/컬럼을 추가하는 마이그레이션 스크립트.
 기존 데이터는 건드리지 않음.
 """
+import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path("erp.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./erp.db")
+DB_PATH = Path(DATABASE_URL.replace("sqlite:///", "", 1))
 
 
 def migrate():
@@ -126,6 +128,15 @@ def migrate():
         if "machine_category" not in existing_sale_cols:
             cur.execute("ALTER TABLE sales ADD COLUMN machine_category VARCHAR(20)")
             print("OK sales.machine_category 컬럼 추가")
+
+    if "sale_items" in existing_tables:
+        cur.execute("PRAGMA table_info(sale_items)")
+        existing_sale_item_cols = {row[1] for row in cur.fetchall()}
+
+        if "chassis_number" not in existing_sale_item_cols:
+            cur.execute("ALTER TABLE sale_items ADD COLUMN chassis_number VARCHAR(100)")
+            print("OK sale_items.chassis_number 컬럼 추가")
+            cur.execute("CREATE INDEX IF NOT EXISTS ix_sale_items_chassis_number ON sale_items(chassis_number)")
 
     # ── maintenance_orders 컬럼 추가 ─────────────────────────────
 

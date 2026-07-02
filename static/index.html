@@ -363,12 +363,14 @@
           <span class="fw-bold">작업기 판매내역</span>
           <button class="btn-purple" onclick="openSaleModal('작업기')"><i class="bi bi-plus-lg"></i>판매 등록</button>
         </div>
+        <input type="text" class="form-control form-control-sm mb-3" id="sales-implement-search"
+               placeholder="차대번호로 검색" oninput="searchSales('작업기')">
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
-              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>총금액</th><th>자부담금</th></tr></thead>
+              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th></tr></thead>
               <tbody id="sales-implement-list">
-                <tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
           </div>
@@ -381,12 +383,14 @@
           <span class="fw-bold">트랙터 판매내역</span>
           <button class="btn-purple" onclick="openSaleModal('트랙터')"><i class="bi bi-plus-lg"></i>판매 등록</button>
         </div>
+        <input type="text" class="form-control form-control-sm mb-3" id="sales-tractor-search"
+               placeholder="차대번호로 검색" oninput="searchSales('트랙터')">
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
-              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>총금액</th><th>자부담금</th></tr></thead>
+              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th></tr></thead>
               <tbody id="sales-tractor-list">
-                <tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
           </div>
@@ -597,12 +601,13 @@
           <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSaleItem()"><i class="bi bi-plus"></i> 품목 추가</button>
         </div>
         <div class="table-responsive" style="max-height:340px;overflow-y:auto">
-          <table class="erp-table" style="min-width:860px">
+          <table class="erp-table" style="min-width:960px">
             <thead style="position:sticky;top:0;z-index:1">
               <tr>
                 <th style="width:155px">품목명</th>
                 <th style="width:145px">기종/모델명</th>
                 <th style="width:100px">제품코드</th>
+                <th style="width:120px">차대번호</th>
                 <th style="width:105px">총금액</th>
                 <th style="width:110px">정부대출금액</th>
                 <th style="width:105px">자부담금</th>
@@ -1175,6 +1180,11 @@ const api = async (method, url, body) => {
 const fmt = n => (n != null && n !== '') ? Math.round(n).toLocaleString('ko-KR') + '원' : '-';
 const today = () => new Date().toISOString().slice(0,10);
 
+function debounce(fn, ms) {
+  let timer = null;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
 const badge = s => {
   const cls = `s-${s}`;
   return `<span class="badge-s ${cls}">${s}</span>`;
@@ -1310,6 +1320,7 @@ function addSaleItem() {
     <td><input type="text" class="form-control form-control-sm" placeholder="품목명" name="product_name"></td>
     <td><input type="text" class="form-control form-control-sm" placeholder="기종/모델명" name="model_name"></td>
     <td><input type="text" class="form-control form-control-sm" placeholder="코드" name="product_code"></td>
+    <td><input type="text" class="form-control form-control-sm" placeholder="차대번호" name="chassis_number"></td>
     <td><input type="number" class="form-control form-control-sm text-end" placeholder="0" name="total_amount" oninput="calcSelfPay(this)"></td>
     <td><input type="number" class="form-control form-control-sm text-end" placeholder="0" name="loan_amount" oninput="calcSelfPay(this)"></td>
     <td><input type="number" class="form-control form-control-sm text-end bg-light" placeholder="자동" name="self_pay_amount" readonly></td>
@@ -1348,6 +1359,7 @@ async function saveSale() {
     product_name:     r.querySelector('[name=product_name]').value,
     model_name:       r.querySelector('[name=model_name]').value,
     product_code:     r.querySelector('[name=product_code]').value,
+    chassis_number:   r.querySelector('[name=chassis_number]').value,
     total_amount:     parseFloat(r.querySelector('[name=total_amount]').value) || 0,
     loan_amount:      parseFloat(r.querySelector('[name=loan_amount]').value)  || 0,
     self_pay_amount:  parseFloat(r.querySelector('[name=self_pay_amount]').value) || 0,
@@ -1553,11 +1565,7 @@ function openProductPicker(rowEl, context) {
   });
 }
 
-let _productPickerTimer = null;
-function searchProductPicker() {
-  clearTimeout(_productPickerTimer);
-  _productPickerTimer = setTimeout(runProductPickerSearch, 250);
-}
+const searchProductPicker = debounce(runProductPickerSearch, 250);
 
 async function runProductPickerSearch() {
   const q = document.getElementById('product-picker-search').value.trim();
@@ -1603,21 +1611,27 @@ function selectProduct(id, name, unitPrice, stock) {
 
 // ─── Sales list ───────────────────────────────────────────────────
 const SALES_LIST_EL = { '작업기': 'sales-implement-list', '트랙터': 'sales-tractor-list' };
+const SALES_SEARCH_EL = { '작업기': 'sales-implement-search', '트랙터': 'sales-tractor-search' };
 let _saleModalCategory = '작업기';
+
+const searchSales = debounce(category => loadSales(category), 250);
 
 async function loadSales(category) {
   try {
-    const list = await api('GET', `/api/sales?category=${encodeURIComponent(category)}`);
+    const q = document.getElementById(SALES_SEARCH_EL[category])?.value.trim() || '';
+    const qs = q ? `&q=${encodeURIComponent(q)}` : '';
+    const list = await api('GET', `/api/sales?category=${encodeURIComponent(category)}${qs}`);
     document.getElementById(SALES_LIST_EL[category]).innerHTML = list.length
       ? list.map(s => `
           <tr>
             <td>${s.sale_date?.slice(0,10) || '-'}</td>
             <td class="fw-semibold">${s.customer_name || '-'}</td>
             <td>${s.items_summary || '-'}</td>
+            <td>${s.chassis_numbers || '-'}</td>
             <td>${fmt(s.total_amount)}</td>
             <td>${fmt(s.self_pay_amount)}</td>
           </tr>`).join('')
-      : '<tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+      : `<tr><td colspan="6" class="text-center text-muted py-4 small">${q ? '검색 결과 없음' : '데이터 없음'}</td></tr>`;
   } catch (e) {}
 }
 
@@ -1636,11 +1650,7 @@ document.querySelectorAll('.maintenance-filter').forEach(btn => {
   });
 });
 
-let _maintenanceSearchTimer = null;
-function searchMaintenance() {
-  clearTimeout(_maintenanceSearchTimer);
-  _maintenanceSearchTimer = setTimeout(loadMaintenance, 250);
-}
+const searchMaintenance = debounce(loadMaintenance, 250);
 
 async function loadMaintenance() {
   try {
@@ -1961,11 +1971,7 @@ function pollImportProgress() {
   }, 500);
 }
 
-let _inventorySearchTimer = null;
-function searchInventory() {
-  clearTimeout(_inventorySearchTimer);
-  _inventorySearchTimer = setTimeout(loadInventory, 250);
-}
+const searchInventory = debounce(loadInventory, 250);
 
 async function loadInventory() {
   const q = document.getElementById('inventory-search')?.value.trim() || '';

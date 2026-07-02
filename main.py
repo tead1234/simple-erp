@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 from app.infrastructure.database.session import init_db
+from migrate import migrate
 from app.infrastructure.logging.error_handlers import register_error_handlers
 from app.infrastructure.backup.db_backup import create_backup
 from app.infrastructure.logging.logger import logger
@@ -36,6 +37,7 @@ async def _daily_backup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    migrate()
     asyncio.create_task(_daily_backup())
     yield
 

@@ -13,6 +13,7 @@ class SaleItem:
     sale_id: Optional[int] = None
     model_name: Optional[str] = None
     product_code: Optional[str] = None
+    chassis_number: Optional[str] = None
     loan_code: Optional[str] = None
     memo: Optional[str] = None
 

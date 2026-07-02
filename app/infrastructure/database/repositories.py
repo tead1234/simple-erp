@@ -42,7 +42,7 @@ def _m_customer(o: ORM_Customer) -> Customer:
 def _m_sale_item(o: ORM_SaleItem) -> SaleItem:
     return SaleItem(
         id=o.id, sale_id=o.sale_id, product_name=o.product_name,
-        model_name=o.model_name, product_code=o.product_code,
+        model_name=o.model_name, product_code=o.product_code, chassis_number=o.chassis_number,
         total_amount=o.total_amount, loan_amount=o.loan_amount,
         self_pay_amount=o.self_pay_amount, loan_code=o.loan_code, memo=o.memo,
     )
@@ -155,10 +155,14 @@ class SqlSaleRepository(ISaleRepository):
         o = self.db.query(ORM_Sale).filter(ORM_Sale.id == id).first()
         return _m_sale(o) if o else None
 
-    def list(self, machine_category: Optional[str] = None) -> List[Sale]:
+    def list(self, machine_category: Optional[str] = None, q: Optional[str] = None) -> List[Sale]:
         query = self.db.query(ORM_Sale)
         if machine_category:
             query = query.filter(ORM_Sale.machine_category == machine_category)
+        if q:
+            query = query.join(ORM_SaleItem, ORM_SaleItem.sale_id == ORM_Sale.id) \
+                         .filter(ORM_SaleItem.chassis_number.like(f"%{q}%")) \
+                         .distinct()
         return [_m_sale(o) for o in query.order_by(ORM_Sale.sale_date.desc()).limit(100).all()]
 
     def save(self, sale: Sale) -> Sale:
@@ -169,7 +173,8 @@ class SqlSaleRepository(ISaleRepository):
         for item in sale.items:
             self.db.add(ORM_SaleItem(
                 sale_id=o.id, product_name=item.product_name, model_name=item.model_name,
-                product_code=item.product_code, total_amount=item.total_amount,
+                product_code=item.product_code, chassis_number=item.chassis_number,
+                total_amount=item.total_amount,
                 loan_amount=item.loan_amount, self_pay_amount=item.self_pay_amount,
                 loan_code=item.loan_code, memo=item.memo,
             ))

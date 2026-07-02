@@ -111,6 +111,7 @@ class SaleItem(Base):
     product_name = Column(String(100), nullable=False)
     model_name = Column(String(100))
     product_code = Column(String(50))
+    chassis_number = Column(String(100), index=True)
     total_amount = Column(Float, default=0)
     loan_amount = Column(Float, default=0)
     self_pay_amount = Column(Float, default=0)

@@ -13,18 +13,20 @@ class SaleService:
         self._sale_repo = sale_repo
         self._customer_svc = CustomerService(customer_repo)
 
-    def list(self, machine_category: Optional[str] = None) -> list:
-        sales = self._sale_repo.list(machine_category)
+    def list(self, machine_category: Optional[str] = None, q: Optional[str] = None) -> list:
+        sales = self._sale_repo.list(machine_category, q)
         result = []
         for s in sales:
             total = sum(i.total_amount for i in s.items)
             self_pay = sum(i.self_pay_amount for i in s.items)
             summary = ", ".join(i.product_name for i in s.items if i.product_name)
+            chassis_numbers = ", ".join(i.chassis_number for i in s.items if i.chassis_number)
             result.append({
                 "id": s.id,
                 "sale_date": s.sale_date.isoformat() if s.sale_date else None,
                 "customer_name": self._get_customer_name(s.customer_id),
                 "items_summary": summary[:30] + ("…" if len(summary) > 30 else ""),
+                "chassis_numbers": chassis_numbers,
                 "total_amount": total,
                 "self_pay_amount": self_pay,
                 "machine_category": s.machine_category,
@@ -46,7 +48,8 @@ class SaleService:
             "items": [
                 {
                     "product_name": i.product_name, "model_name": i.model_name,
-                    "product_code": i.product_code, "total_amount": i.total_amount,
+                    "product_code": i.product_code, "chassis_number": i.chassis_number,
+                    "total_amount": i.total_amount,
                     "loan_amount": i.loan_amount, "self_pay_amount": i.self_pay_amount,
                     "loan_code": i.loan_code, "memo": i.memo,
                 }
@@ -64,6 +67,7 @@ class SaleService:
                 product_name=item["product_name"],
                 model_name=item.get("model_name"),
                 product_code=item.get("product_code"),
+                chassis_number=item.get("chassis_number"),
                 total_amount=item["total_amount"],
                 loan_amount=item["loan_amount"],
                 self_pay_amount=self_pay,
