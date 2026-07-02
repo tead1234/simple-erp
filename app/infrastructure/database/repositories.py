@@ -400,7 +400,8 @@ class DashboardQuery:
                 "receivable": max(0, (o.total_amount or 0) - paid),
             })
 
-        low_stock = self.db.query(ORM_Product).filter(ORM_Product.stock_quantity <= 1).all()
+        # 엑셀 이관 재고에 수량 데이터가 없어 임시로 꺼둠. 재고수량 재입력 후 원복.
+        low_stock = []
 
         return {
             "monthly_revenue": monthly_revenue,

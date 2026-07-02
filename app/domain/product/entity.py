@@ -18,7 +18,8 @@ class Product:
 
     @property
     def is_low_stock(self) -> bool:
-        return self.stock_quantity <= self.min_stock_quantity
+        # 엑셀 이관 재고에 수량 데이터가 없어 임시로 꺼둠. 재고수량 재입력 후 원복: self.stock_quantity <= self.min_stock_quantity
+        return False
 
     def deduct(self):
         if self.stock_quantity <= 0:

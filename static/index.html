@@ -1251,13 +1251,16 @@ const SECTION_NAMES = {
   inventory:'부품재고', equipment:'장비관리', settings:'설정',
 };
 
+let _dashboardInterval = null;
+
 function switchSection(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('#sidebar .nav-link').forEach(l => l.classList.remove('active'));
   document.getElementById('section-' + name)?.classList.add('active');
   document.querySelector(`[data-section="${name}"]`)?.classList.add('active');
   document.getElementById('topbar-title').textContent = SECTION_NAMES[name] || name;
-  if (name === 'dashboard') loadDashboard();
+  clearInterval(_dashboardInterval);
+  if (name === 'dashboard') { loadDashboard(); _dashboardInterval = setInterval(loadDashboard, 15000); }
   if (name === 'estimates') loadEstimates();
   if (name === 'sales-implement') loadSales('작업기');
   if (name === 'sales-tractor') loadSales('트랙터');
@@ -1341,6 +1344,7 @@ document.addEventListener('DOMContentLoaded', () => {
     d.toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'short'});
 
   loadDashboard();
+  _dashboardInterval = setInterval(loadDashboard, 15000);
 });
 
 function openSaleModal(category) {
