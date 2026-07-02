@@ -11,6 +11,7 @@ router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 class ProductIn(BaseModel):
     name: str
     code: Optional[str] = None
+    old_code: Optional[str] = None
     category: Optional[str] = None
     model: Optional[str] = None
     stock_quantity: int = 0
@@ -24,6 +25,7 @@ class ProductIn(BaseModel):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     code: Optional[str] = None
+    old_code: Optional[str] = None
     category: Optional[str] = None
     model: Optional[str] = None
     min_stock_quantity: Optional[int] = None
@@ -47,6 +49,11 @@ def list_products(category: Optional[str] = Query(None), svc: InventoryService =
 @router.get("/low-stock")
 def low_stock(svc: InventoryService = Depends(get_inventory_service)):
     return svc.find_low_stock()
+
+
+@router.get("/search")
+def search_products(q: str = Query(""), limit: int = Query(30), svc: InventoryService = Depends(get_inventory_service)):
+    return svc.search(q, limit)
 
 
 @router.post("", status_code=201)

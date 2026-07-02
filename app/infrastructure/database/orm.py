@@ -67,8 +67,9 @@ class EstimateItem(Base):
 class Product(Base):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False, index=True)
     code = Column(String(50), unique=True)
+    old_code = Column(String(50), index=True)
     category = Column(String(50))
     model = Column(String(200))
     stock_quantity = Column(Integer, default=0)

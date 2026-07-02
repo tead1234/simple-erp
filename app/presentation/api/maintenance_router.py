@@ -82,8 +82,9 @@ class PaymentIn(BaseModel):
 
 
 @router.get("")
-def list_maintenance(status: Optional[str] = Query(None), svc: MaintenanceService = Depends(get_maintenance_service)):
-    return svc.list(status)
+def list_maintenance(status: Optional[str] = Query(None), q: Optional[str] = Query(None),
+                      svc: MaintenanceService = Depends(get_maintenance_service)):
+    return svc.list(status, q)
 
 
 @router.post("", status_code=201)

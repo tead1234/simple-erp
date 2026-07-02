@@ -20,16 +20,22 @@ class InventoryService:
             raise HTTPException(404, "상품을 찾을 수 없습니다")
         return self._to_dict(p)
 
-    def create(self, name: str, code: str = None, category: str = None, model: str = None,
+    def create(self, name: str, code: str = None, old_code: str = None, category: str = None, model: str = None,
                stock_quantity: int = 0, min_stock_quantity: int = 0, unit_price: float = 0,
                dealer_price: float = 0, center_price: float = 0, consumer_price: float = 0) -> dict:
         p = self.repo.save(Product(
-            name=name, code=code, category=category, model=model,
+            name=name, code=code, old_code=old_code, category=category, model=model,
             stock_quantity=stock_quantity, min_stock_quantity=min_stock_quantity,
             unit_price=unit_price, dealer_price=dealer_price,
             center_price=center_price, consumer_price=consumer_price,
         ))
         return self._to_dict(p)
+
+    def search(self, q: str, limit: int = 30) -> list:
+        q = (q or "").strip()
+        if not q:
+            return []
+        return [self._to_dict(p) for p in self.repo.search(q, limit)]
 
     def update(self, product_id: int, **kwargs) -> dict:
         p = self.repo.get(product_id)
@@ -70,10 +76,12 @@ class InventoryService:
 
         for row in ws.iter_rows(min_row=3, values_only=True):
             code = row[1]
+            old_code = row[2]
             name = row[3]
             if not code or not name:
                 continue
             code = str(code).strip()
+            old_code = str(old_code).strip() if old_code else None
             name = str(name).strip()
             if code in seen_codes:
                 skipped += 1
@@ -81,7 +89,6 @@ class InventoryService:
             seen_codes.add(code)
 
             model = str(row[4]).strip() if row[4] else None
-            unit_price = float(row[5]) if row[5] else 0.0
             dealer_price = float(row[6]) if row[6] else 0.0
             center_price = float(row[7]) if row[7] else 0.0
             consumer_price = float(row[8]) if row[8] else 0.0
@@ -89,8 +96,8 @@ class InventoryService:
             existing = self.repo.find_by_code(code)
             if existing:
                 existing.name = name
+                existing.old_code = old_code
                 existing.model = model
-                existing.unit_price = unit_price
                 existing.dealer_price = dealer_price
                 existing.center_price = center_price
                 existing.consumer_price = consumer_price
@@ -98,8 +105,8 @@ class InventoryService:
                 updated += 1
             else:
                 self.repo.save(Product(
-                    name=name, code=code, model=model,
-                    unit_price=unit_price, dealer_price=dealer_price,
+                    name=name, code=code, old_code=old_code, model=model,
+                    dealer_price=dealer_price,
                     center_price=center_price, consumer_price=consumer_price,
                 ))
                 created += 1

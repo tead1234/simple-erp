@@ -84,7 +84,7 @@ def _m_settings(o: ORM_Settings) -> CompanySettings:
     )
 
 def _m_product(o: ORM_Product) -> Product:
-    return Product(id=o.id, name=o.name, code=o.code, category=o.category,
+    return Product(id=o.id, name=o.name, code=o.code, old_code=o.old_code, category=o.category,
                    model=o.model,
                    stock_quantity=o.stock_quantity, min_stock_quantity=o.min_stock_quantity,
                    unit_price=o.unit_price or 0,
@@ -202,11 +202,21 @@ class SqlProductRepository(IProductRepository):
         o = self.db.query(ORM_Product).filter(ORM_Product.code == code).with_for_update().first()
         return _m_product(o) if o else None
 
+    def search(self, q: str, limit: int = 30) -> List[Product]:
+        like = f"%{q}%"
+        return [_m_product(o) for o in
+                self.db.query(ORM_Product).filter(
+                    ORM_Product.code.like(like) |
+                    ORM_Product.old_code.like(like) |
+                    ORM_Product.name.like(like)
+                ).order_by(ORM_Product.name).limit(limit).all()]
+
     def save(self, product: Product) -> Product:
         if product.id:
             o = self.db.query(ORM_Product).filter(ORM_Product.id == product.id).first()
             o.name = product.name
             o.code = product.code
+            o.old_code = product.old_code
             o.category = product.category
             o.model = product.model
             o.stock_quantity = product.stock_quantity
@@ -216,7 +226,7 @@ class SqlProductRepository(IProductRepository):
             o.center_price = product.center_price
             o.consumer_price = product.consumer_price
         else:
-            o = ORM_Product(name=product.name, code=product.code, category=product.category,
+            o = ORM_Product(name=product.name, code=product.code, old_code=product.old_code, category=product.category,
                             model=product.model,
                             stock_quantity=product.stock_quantity,
                             min_stock_quantity=product.min_stock_quantity,
@@ -243,10 +253,16 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
         o = self.db.query(ORM_Maintenance).filter(ORM_Maintenance.id == id).first()
         return _m_maintenance(o) if o else None
 
-    def list(self, status: Optional[str] = None) -> List[MaintenanceOrder]:
+    def list(self, status: Optional[str] = None, q: Optional[str] = None) -> List[MaintenanceOrder]:
         query = self.db.query(ORM_Maintenance)
         if status:
             query = query.filter(ORM_Maintenance.status == status)
+        if q:
+            like = f"%{q}%"
+            query = query.outerjoin(ORM_Customer, ORM_Maintenance.customer_id == ORM_Customer.id) \
+                         .outerjoin(ORM_Part, ORM_Part.maintenance_id == ORM_Maintenance.id) \
+                         .filter(ORM_Customer.name.like(like) | ORM_Part.part_name.like(like)) \
+                         .distinct()
         return [_m_maintenance(o) for o in query.order_by(ORM_Maintenance.received_date.desc()).limit(200).all()]
 
     def save(self, order: MaintenanceOrder) -> MaintenanceOrder:

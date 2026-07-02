@@ -20,10 +20,10 @@ class MaintenanceService:
         self._estimate_repo = estimate_repo
         self._product_repo = product_repo
 
-    def list(self, status: Optional[str] = None) -> list:
+    def list(self, status: Optional[str] = None, q: Optional[str] = None) -> list:
         if status and status not in VALID_STATUSES:
             raise HTTPException(400, f"유효하지 않은 상태값: {status}")
-        orders = self._repo.list(status)
+        orders = self._repo.list(status, q)
         cache = {}
 
         def get_name(cid):

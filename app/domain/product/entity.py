@@ -7,6 +7,7 @@ class Product:
     name: str
     id: Optional[int] = None
     code: Optional[str] = None
+    old_code: Optional[str] = None
     category: Optional[str] = None
     model: Optional[str] = None
     stock_quantity: int = 0

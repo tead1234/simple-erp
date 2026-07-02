@@ -428,6 +428,8 @@
           <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="출고">출고</button>
           <button class="btn btn-sm btn-outline-secondary maintenance-filter" data-status="취소">취소</button>
         </div>
+        <input type="text" class="form-control form-control-sm mb-3" id="maintenance-search"
+               placeholder="고객명 또는 사용부품명으로 검색" oninput="searchMaintenance()">
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
@@ -469,11 +471,13 @@
         <div id="low-stock-alert" class="alert alert-warning d-none small py-2 mb-3">
           <i class="bi bi-exclamation-triangle me-1"></i><strong>재고 부족 품목:</strong> <span id="low-stock-names"></span>
         </div>
+        <input type="text" class="form-control form-control-sm mb-3" id="inventory-search"
+               placeholder="품번, 기존품번 또는 부품명으로 검색" oninput="searchInventory()">
         <div class="erp-card">
           <div class="p-0">
             <table class="erp-table">
-              <thead><tr><th>부품명</th><th>코드</th><th>분류</th><th>모델</th><th>재고</th><th>최소재고</th><th>매입단가</th><th>대리점가</th><th>센터가</th><th>소비자가</th><th>작업</th></tr></thead>
-              <tbody id="inventory-list"><tr><td colspan="11" class="text-center text-muted py-4 small">데이터 없음</td></tr></tbody>
+              <thead><tr><th>부품명</th><th>품번</th><th>기존품번</th><th>분류</th><th>모델</th><th>재고</th><th>최소재고</th><th>매입단가</th><th>대리점가</th><th>센터가</th><th>소비자가</th><th>작업</th></tr></thead>
+              <tbody id="inventory-list"><tr><td colspan="12" class="text-center text-muted py-4 small">품번, 기존품번 또는 부품명을 검색하세요</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -970,7 +974,7 @@
       </div>
       <div class="modal-body">
         <input type="text" class="form-control form-control-sm mb-3" id="product-picker-search"
-               placeholder="상품명 또는 코드" oninput="searchProductPicker()">
+               placeholder="품번, 기존품번 또는 부품명" oninput="searchProductPicker()">
         <div id="product-picker-results" style="max-height:320px;overflow-y:auto"></div>
       </div>
     </div>
@@ -1034,8 +1038,12 @@
             <input type="text" class="form-control form-control-sm" id="prod-name">
           </div>
           <div class="col-md-6">
-            <label class="form-label small fw-semibold">부품코드</label>
+            <label class="form-label small fw-semibold">품번</label>
             <input type="text" class="form-control form-control-sm" id="prod-code">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">기존품번</label>
+            <input type="text" class="form-control form-control-sm" id="prod-old-code">
           </div>
           <div class="col-md-6">
             <label class="form-label small fw-semibold">분류</label>
@@ -1602,31 +1610,35 @@ function openProductPicker(rowEl, context) {
   _productPickerRow = rowEl;
   _productPickerContext = context;
   document.getElementById('product-picker-search').value = '';
-  document.getElementById('product-picker-results').innerHTML = '';
+  document.getElementById('product-picker-results').innerHTML = '<div class="text-center text-muted py-3 small">품번, 기존품번 또는 부품명을 입력하세요</div>';
   _productPickerModal.show();
   requestAnimationFrame(() => {
     const backdrops = document.querySelectorAll('.modal-backdrop');
     if (backdrops.length > 0) backdrops[backdrops.length - 1].style.zIndex = '1070';
   });
-  searchProductPicker();
 }
 
-async function searchProductPicker() {
-  const q = document.getElementById('product-picker-search').value.trim().toLowerCase();
+let _productPickerTimer = null;
+function searchProductPicker() {
+  clearTimeout(_productPickerTimer);
+  _productPickerTimer = setTimeout(runProductPickerSearch, 250);
+}
+
+async function runProductPickerSearch() {
+  const q = document.getElementById('product-picker-search').value.trim();
+  const results = document.getElementById('product-picker-results');
+  if (!q) { results.innerHTML = '<div class="text-center text-muted py-3 small">품번, 기존품번 또는 부품명을 입력하세요</div>'; return; }
   try {
-    const list = await api('GET', '/api/inventory');
-    const filtered = q
-      ? list.filter(p => p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q))
-      : list;
-    document.getElementById('product-picker-results').innerHTML = filtered.length
-      ? filtered.map(p => `
+    const list = await api('GET', `/api/inventory/search?q=${encodeURIComponent(q)}`);
+    document.getElementById('product-picker-results').innerHTML = list.length
+      ? list.map(p => `
           <div class="d-flex justify-content-between align-items-center py-2 px-1 border-bottom"
                style="cursor:pointer" data-pid="${p.id}" data-pname="${(p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"
                data-pprice="${p.unit_price || 0}" data-pstock="${p.stock_quantity}"
                onclick="selectProduct(this.dataset.pid,this.dataset.pname,this.dataset.pprice,this.dataset.pstock)">
             <div>
               <div class="fw-semibold small">${p.name}${p.is_low_stock ? ' <span class="badge-s s-취소" style="font-size:.65rem">부족</span>' : ''}</div>
-              <div class="text-muted" style="font-size:.75rem">${p.code || ''}</div>
+              <div class="text-muted" style="font-size:.75rem">품번 ${p.code || '-'}${p.old_code ? ` · 기존품번 ${p.old_code}` : ''}</div>
             </div>
             <div class="text-end small">
               <div>재고 ${p.stock_quantity}개</div>
@@ -1689,10 +1701,20 @@ document.querySelectorAll('.maintenance-filter').forEach(btn => {
   });
 });
 
+let _maintenanceSearchTimer = null;
+function searchMaintenance() {
+  clearTimeout(_maintenanceSearchTimer);
+  _maintenanceSearchTimer = setTimeout(loadMaintenance, 250);
+}
+
 async function loadMaintenance() {
   try {
-    const q = _maintenanceStatus === '전체' ? '' : `?status=${encodeURIComponent(_maintenanceStatus)}`;
-    const list = await api('GET', '/api/maintenance' + q);
+    const params = new URLSearchParams();
+    if (_maintenanceStatus !== '전체') params.set('status', _maintenanceStatus);
+    const search = document.getElementById('maintenance-search')?.value.trim();
+    if (search) params.set('q', search);
+    const qs = params.toString();
+    const list = await api('GET', '/api/maintenance' + (qs ? `?${qs}` : ''));
     document.getElementById('maintenance-list').innerHTML = list.length
       ? list.map(m => `
           <tr>
@@ -1982,14 +2004,28 @@ async function importExcel(input) {
   } catch(e) { toast(e.message, false); }
 }
 
+let _inventorySearchTimer = null;
+function searchInventory() {
+  clearTimeout(_inventorySearchTimer);
+  _inventorySearchTimer = setTimeout(loadInventory, 250);
+}
+
 async function loadInventory() {
+  const q = document.getElementById('inventory-search')?.value.trim() || '';
+  const tbody = document.getElementById('inventory-list');
+  if (!q) {
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4 small">품번, 기존품번 또는 부품명을 검색하세요</td></tr>';
+    document.getElementById('low-stock-alert').classList.add('d-none');
+    return;
+  }
   try {
-    const list = await api('GET', '/api/inventory');
+    const list = await api('GET', `/api/inventory/search?q=${encodeURIComponent(q)}&limit=100`);
     document.getElementById('inventory-list').innerHTML = list.length
       ? list.map(p => `
           <tr class="${p.is_low_stock ? 'table-warning' : ''}">
             <td class="fw-semibold">${p.name}${p.is_low_stock ? ' <span class="badge-s s-취소" style="font-size:.65rem">부족</span>' : ''}</td>
             <td>${p.code || '-'}</td>
+            <td>${p.old_code || '-'}</td>
             <td>${p.category || '-'}</td>
             <td class="text-muted small">${p.model || '-'}</td>
             <td class="${p.is_low_stock ? 'text-danger fw-bold' : ''}">${p.stock_quantity}</td>
@@ -2002,7 +2038,7 @@ async function loadInventory() {
               <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.73rem" onclick="openStockModal(${p.id},'${p.name.replace(/'/g,"\\'")}')">입/출고</button>
             </td>
           </tr>`).join('')
-      : '<tr><td colspan="11" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+      : '<tr><td colspan="12" class="text-center text-muted py-4 small">검색 결과 없음</td></tr>';
 
     const low = list.filter(p => p.is_low_stock);
     const la = document.getElementById('low-stock-alert');
@@ -2014,7 +2050,7 @@ async function loadInventory() {
 }
 
 function openProductModal() {
-  ['prod-name','prod-code','prod-category'].forEach(id => document.getElementById(id).value = '');
+  ['prod-name','prod-code','prod-old-code','prod-category'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('prod-stock').value = 0;
   document.getElementById('prod-min-stock').value = 0;
   document.getElementById('prod-price').value = 0;
@@ -2028,6 +2064,7 @@ async function saveProduct() {
     await api('POST', '/api/inventory', {
       name,
       code:              document.getElementById('prod-code').value,
+      old_code:          document.getElementById('prod-old-code').value,
       category:          document.getElementById('prod-category').value,
       stock_quantity:    parseInt(document.getElementById('prod-stock').value) || 0,
       min_stock_quantity:parseInt(document.getElementById('prod-min-stock').value) || 0,
