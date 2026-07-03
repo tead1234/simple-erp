@@ -60,14 +60,6 @@ async def root():
     return FileResponse("static/index.html")
 
 
-# 수동 백업 다운로드
-@app.get("/admin/backup/download")
-def download_backup():
-    from fastapi.responses import FileResponse as FR
-    path = create_backup()
-    return FR(str(path), filename=path.name, media_type="application/octet-stream")
-
-
 # 문제 발생 시 의뢰인이 로그+DB 덤프를 받아 전달할 수 있도록 하는 진단 다운로드
 @app.get("/admin/diagnostics/download")
 def download_diagnostics():

@@ -70,6 +70,7 @@ db.sqlite3-journal
 *.db-wal
 *.db-shm
 backups/
+logs/
 
 # Flask stuff:
 instance/
