@@ -4,6 +4,7 @@
 """
 import os
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./erp.db")
@@ -64,6 +65,23 @@ def migrate():
             if col_name not in existing_cs_cols:
                 cur.execute(f"ALTER TABLE company_settings ADD COLUMN {col_name} {col_def}")
                 print(f"OK company_settings.{col_name} 컬럼 추가")
+
+    # ── company_settings 기본값(진성농기계) 최초 등록 ────────────────
+
+    cur.execute("SELECT COUNT(*) FROM company_settings")
+    if cur.fetchone()[0] == 0:
+        cur.execute("""
+            INSERT INTO company_settings
+                (registration_number, company_name, owner_name, address,
+                 business_type, business_category, phone, mobile, email, bank_account, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "872-09-03007", "진성농기계", "안향진",
+            "경기도 용인시 처인구 원삼면 죽양대로 1626번길 47",
+            "도소매", "농기계수리", "031-336-7825", "010-2494-6187",
+            "ahj82993@naver.com", "농협 351-1325-9033-33", datetime.now().isoformat(sep=" "),
+        ))
+        print("OK company_settings 기본값(진성농기계) 등록")
 
     if "estimates" not in existing_tables:
         cur.execute("""

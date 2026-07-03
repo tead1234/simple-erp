@@ -98,40 +98,6 @@ if (!id) {
 
 function fmt(n) { return (n == null || n === '') ? '' : Math.round(n).toLocaleString('ko-KR'); }
 
-function numToKoreanWon(n) {
-  n = Math.round(n || 0);
-  if (n === 0) return '영원';
-  const digits = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
-  const smallUnits = ['', '십', '백', '천'];
-  const bigUnits = ['', '만', '억', '조'];
-
-  function convert4(str) {
-    let out = '';
-    for (let i = 0; i < str.length; i++) {
-      const d = parseInt(str[i], 10);
-      const pos = str.length - i - 1;
-      if (d !== 0) out += digits[d] + smallUnits[pos];
-    }
-    return out;
-  }
-
-  let str = String(n);
-  const groups = [];
-  while (str.length > 0) {
-    groups.unshift(str.length > 4 ? str.slice(-4) : str);
-    str = str.length > 4 ? str.slice(0, -4) : '';
-  }
-
-  let result = '';
-  const numGroups = groups.length;
-  groups.forEach((g, i) => {
-    if (parseInt(g, 10) !== 0) {
-      result += convert4(g) + bigUnits[numGroups - i - 1];
-    }
-  });
-  return result + ' 원';
-}
-
 function render(e, s) {
   const date = e.estimate_date ? new Date(e.estimate_date) : new Date();
   const yyyy = date.getFullYear();
@@ -214,7 +180,7 @@ function render(e, s) {
 
     <div class="total-amount-bar">
       <span class="total-label">합계금액 (공급가액 + 부가세)</span>
-      <span class="total-value">₩ ${fmt(e.total_amount)} (${numToKoreanWon(e.total_amount)})</span>
+      <span class="total-value">₩ ${fmt(e.total_amount)}</span>
     </div>
 
     <div class="section-title">1. 견적 명세표</div>
