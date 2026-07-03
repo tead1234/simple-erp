@@ -78,6 +78,8 @@ class InventoryService:
         wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
         ws = wb["복사 붙혀넣기"]
         total = max(ws.max_row - 2, 0)  # min_row=3 기준
+        if "판가 데이터" in wb.sheetnames:
+            total += max(wb["판가 데이터"].max_row - 3, 0)  # min_row=4 기준
         _import_progress.update(running=True, total=total, processed=0,
                                  created=0, updated=0, skipped=0, done=False, error=None)
         threading.Thread(target=self._run_import, args=(file_bytes,), daemon=True).start()
@@ -94,8 +96,9 @@ class InventoryService:
             wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
             ws = wb["복사 붙혀넣기"]
             seen_codes = set()
+            processed = 0
 
-            for i, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=1):
+            for row in ws.iter_rows(min_row=3, values_only=True):
                 code = row[1]
                 old_code = row[2]
                 name = row[3]
@@ -129,9 +132,42 @@ class InventoryService:
                                 center_price=center_price, consumer_price=consumer_price,
                             ))
                             _import_progress["created"] += 1
-                _import_progress["processed"] = i
-                if i % 200 == 0:
+                processed += 1
+                _import_progress["processed"] = processed
+                if processed % 200 == 0:
                     db.commit()
+
+            # "판가 데이터" 시트: 구조가 달라 신품번/구품번/품명/대리점가/센터가/수요자가 6열만 존재.
+            # 시트1에 없던 품번을 신규 등록하는 용도로만 쓰고, 시트1과 겹치는 품번은 시트1 값을 우선한다.
+            if "판가 데이터" in wb.sheetnames:
+                for row in wb["판가 데이터"].iter_rows(min_row=4, values_only=True):
+                    code = row[0]
+                    name = row[2]
+                    if code and name:
+                        code = str(code).strip()
+                        name = str(name).strip()
+                        if code in seen_codes:
+                            _import_progress["skipped"] += 1
+                        else:
+                            seen_codes.add(code)
+                            existing = repo.find_by_code(code)
+                            if existing:
+                                _import_progress["skipped"] += 1
+                            else:
+                                old_code = str(row[1]).strip() if row[1] else None
+                                dealer_price = float(row[3]) if row[3] else 0.0
+                                center_price = float(row[4]) if row[4] else 0.0
+                                consumer_price = float(row[5]) if row[5] else 0.0
+                                repo.save(Product(
+                                    name=name, code=code, old_code=old_code,
+                                    dealer_price=dealer_price,
+                                    center_price=center_price, consumer_price=consumer_price,
+                                ))
+                                _import_progress["created"] += 1
+                    processed += 1
+                    _import_progress["processed"] = processed
+                    if processed % 200 == 0:
+                        db.commit()
 
             db.commit()
         except Exception as e:

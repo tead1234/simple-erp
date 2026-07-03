@@ -313,7 +313,7 @@
                 최근 정비 현황
                 <a href="#" class="text-muted small text-decoration-none" onclick="switchSection('maintenance');return false">전체보기 →</a>
               </div>
-              <div class="p-0">
+              <div class="p-0 table-responsive">
                 <table class="erp-table">
                   <thead><tr><th>고객명</th><th>기종</th><th>상태</th><th>수리금액</th><th>미수금</th></tr></thead>
                   <tbody id="dash-maintenance-list">
@@ -326,7 +326,7 @@
           <div class="col-lg-5">
             <div class="erp-card">
               <div class="erp-card-header">미수금 현황</div>
-              <div class="p-0">
+              <div class="p-0 table-responsive">
                 <table class="erp-table">
                   <thead><tr><th>고객명</th><th>미수금</th></tr></thead>
                   <tbody id="dash-receivable-list">
@@ -346,7 +346,7 @@
           <button class="btn-purple" onclick="openEstimateModal()"><i class="bi bi-plus-lg"></i>견적서 작성</button>
         </div>
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>번호</th><th>날짜</th><th>계약자명</th><th>합계금액</th><th>상태</th><th>작업</th></tr></thead>
               <tbody id="estimate-list">
@@ -366,7 +366,7 @@
         <input type="text" class="form-control form-control-sm mb-3" id="sales-implement-search"
                placeholder="차대번호로 검색" oninput="searchSales('작업기')">
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th></tr></thead>
               <tbody id="sales-implement-list">
@@ -386,7 +386,7 @@
         <input type="text" class="form-control form-control-sm mb-3" id="sales-tractor-search"
                placeholder="차대번호로 검색" oninput="searchSales('트랙터')">
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th></tr></thead>
               <tbody id="sales-tractor-list">
@@ -407,7 +407,7 @@
           <input type="text" class="form-control form-control-sm" id="customer-search" placeholder="이름 또는 전화번호 검색" oninput="searchCustomers()">
         </div>
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>이름</th><th>전화번호</th><th>주소</th><th>메모</th><th>작업</th></tr></thead>
               <tbody id="customer-list">
@@ -434,7 +434,7 @@
         <input type="text" class="form-control form-control-sm mb-3" id="maintenance-search"
                placeholder="고객명 또는 사용부품명으로 검색" oninput="searchMaintenance()">
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>접수일</th><th>고객명</th><th>상태</th><th>수리금액</th><th>미수금</th><th>작업</th></tr></thead>
               <tbody id="maintenance-list">
@@ -452,7 +452,7 @@
           <button class="btn-purple" onclick="openFieldtripModal()"><i class="bi bi-plus-lg"></i>출장 등록</button>
         </div>
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>날짜</th><th>고객명</th><th>목적</th><th>상태</th><th>결과</th><th>작업</th></tr></thead>
               <tbody id="fieldtrip-list"><tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr></tbody>
@@ -487,7 +487,7 @@
                placeholder="품번, 기존품번 또는 부품명으로 검색" oninput="searchInventory()">
         <div id="inventory-hint" class="text-muted small mb-2">최근 등록·수정된 부품입니다. 전체에서 찾으려면 검색하세요.</div>
         <div class="erp-card">
-          <div class="p-0">
+          <div class="p-0 table-responsive">
             <table class="erp-table">
               <thead><tr><th>부품명</th><th>품번</th><th>기존품번</th><th>분류</th><th>모델</th><th>재고</th><th>최소재고</th><th>매입단가</th><th>대리점가</th><th>센터가</th><th>소비자가</th><th>작업</th></tr></thead>
               <tbody id="inventory-list"><tr><td colspan="12" class="text-center text-muted py-4 small">품번, 기존품번 또는 부품명을 검색하세요</td></tr></tbody>
