@@ -83,6 +83,8 @@ class InventoryService:
             raise HTTPException(409, "이미 엑셀 가져오기가 진행 중입니다")
         import openpyxl, io
         wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        if "복사 붙혀넣기" not in wb.sheetnames:
+            raise HTTPException(400, "올바른 양식의 파일이 아닙니다 ('복사 붙혀넣기' 시트를 찾을 수 없습니다)")
         ws = wb["복사 붙혀넣기"]
         total = max(ws.max_row - 2, 0)  # min_row=3 기준
         if "판가 데이터" in wb.sheetnames:
