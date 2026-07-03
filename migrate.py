@@ -220,6 +220,14 @@ def migrate():
     if cur.rowcount:
         print(f"OK maintenance_orders.status '접수' → '작업중' {cur.rowcount}건 변경")
 
+    # ── customers.is_active 컬럼 추가 (소프트 삭제용) ──────────────
+
+    cur.execute("PRAGMA table_info(customers)")
+    existing_customer_cols = {row[1] for row in cur.fetchall()}
+    if "is_active" not in existing_customer_cols:
+        cur.execute("ALTER TABLE customers ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1")
+        print("OK customers.is_active 컬럼 추가")
+
     conn.commit()
     conn.close()
     print("\n마이그레이션 완료.")

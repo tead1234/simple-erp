@@ -37,7 +37,7 @@ from app.infrastructure.database.orm import (
 # ── Mappers ───────────────────────────────────────────────────────────────────
 
 def _m_customer(o: ORM_Customer) -> Customer:
-    return Customer(id=o.id, name=o.name, phone=o.phone, address=o.address, memo=o.memo)
+    return Customer(id=o.id, name=o.name, phone=o.phone, address=o.address, memo=o.memo, is_active=o.is_active)
 
 def _m_sale_item(o: ORM_SaleItem) -> SaleItem:
     return SaleItem(
@@ -119,11 +119,13 @@ class SqlCustomerRepository(ICustomerRepository):
         return _m_customer(o) if o else None
 
     def find_by_name(self, name: str) -> Optional[Customer]:
-        o = self.db.query(ORM_Customer).filter(ORM_Customer.name == name).first()
+        o = self.db.query(ORM_Customer).filter(
+            ORM_Customer.name == name, ORM_Customer.is_active == True  # noqa: E712
+        ).first()
         return _m_customer(o) if o else None
 
     def search(self, q: str) -> List[Customer]:
-        query = self.db.query(ORM_Customer)
+        query = self.db.query(ORM_Customer).filter(ORM_Customer.is_active == True)  # noqa: E712
         if q:
             query = query.filter(ORM_Customer.name.contains(q) | ORM_Customer.phone.contains(q))
         return [_m_customer(c) for c in query.order_by(ORM_Customer.name).all()]
@@ -139,9 +141,10 @@ class SqlCustomerRepository(ICustomerRepository):
         return _m_customer(o)
 
     def delete(self, id: int) -> None:
+        # 판매/정비/출장 이력이 customer_id를 참조하므로 실제로 지우지 않고 목록에서만 숨김(소프트 삭제)
         o = self.db.query(ORM_Customer).filter(ORM_Customer.id == id).first()
         if o:
-            self.db.delete(o)
+            o.is_active = False
             self.db.flush()
 
 
@@ -218,10 +221,12 @@ class SqlProductRepository(IProductRepository):
                 ).order_by(ORM_Product.name).limit(limit).all()]
 
     def save(self, product: Product) -> Product:
+        # 빈 문자열 품번은 NULL로 정규화 — SQLite UNIQUE는 빈 문자열끼리도 충돌시키지만 NULL끼리는 허용함
+        code = (product.code or "").strip() or None
         if product.id:
             o = self.db.query(ORM_Product).filter(ORM_Product.id == product.id).first()
             o.name = product.name
-            o.code = product.code
+            o.code = code
             o.old_code = product.old_code
             o.category = product.category
             o.model = product.model
@@ -232,7 +237,7 @@ class SqlProductRepository(IProductRepository):
             o.center_price = product.center_price
             o.consumer_price = product.consumer_price
         else:
-            o = ORM_Product(name=product.name, code=product.code, old_code=product.old_code, category=product.category,
+            o = ORM_Product(name=product.name, code=code, old_code=product.old_code, category=product.category,
                             model=product.model,
                             stock_quantity=product.stock_quantity,
                             min_stock_quantity=product.min_stock_quantity,

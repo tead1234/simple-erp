@@ -9,3 +9,4 @@ class Customer:
     phone: Optional[str] = None
     address: Optional[str] = None
     memo: Optional[str] = None
+    is_active: bool = True

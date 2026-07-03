@@ -1,5 +1,6 @@
 import threading
 from fastapi import Depends, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from app.domain.product.entity import Product
 from app.domain.product.repository import IProductRepository
 from app.infrastructure.database.repositories import get_product_repo, SqlProductRepository
@@ -30,12 +31,15 @@ class InventoryService:
     def create(self, name: str, code: str = None, old_code: str = None, category: str = None, model: str = None,
                stock_quantity: int = 0, min_stock_quantity: int = 0, unit_price: float = 0,
                dealer_price: float = 0, center_price: float = 0, consumer_price: float = 0) -> dict:
-        p = self.repo.save(Product(
-            name=name, code=code, old_code=old_code, category=category, model=model,
-            stock_quantity=stock_quantity, min_stock_quantity=min_stock_quantity,
-            unit_price=unit_price, dealer_price=dealer_price,
-            center_price=center_price, consumer_price=consumer_price,
-        ))
+        try:
+            p = self.repo.save(Product(
+                name=name, code=code, old_code=old_code, category=category, model=model,
+                stock_quantity=stock_quantity, min_stock_quantity=min_stock_quantity,
+                unit_price=unit_price, dealer_price=dealer_price,
+                center_price=center_price, consumer_price=consumer_price,
+            ))
+        except IntegrityError:
+            raise HTTPException(400, "이미 등록된 품번입니다")
         return self._to_dict(p)
 
     def search(self, q: str, limit: int = 30) -> list:
@@ -51,7 +55,10 @@ class InventoryService:
         for k, v in kwargs.items():
             if v is not None and hasattr(p, k):
                 setattr(p, k, v)
-        p = self.repo.save(p)
+        try:
+            p = self.repo.save(p)
+        except IntegrityError:
+            raise HTTPException(400, "이미 등록된 품번입니다")
         return self._to_dict(p)
 
     def adjust_stock(self, product_id: int, movement_type: str, quantity: int, reason: str = None) -> dict:
