@@ -1591,20 +1591,24 @@ async function runProductPickerSearch() {
   try {
     const list = await api('GET', `/api/inventory/search?q=${encodeURIComponent(q)}`);
     document.getElementById('product-picker-results').innerHTML = list.length
-      ? list.map(p => `
-          <div class="d-flex justify-content-between align-items-center py-2 px-1 border-bottom"
-               style="cursor:pointer" data-pid="${p.id}" data-pname="${(p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"
-               data-pprice="${p.unit_price || 0}" data-pstock="${p.stock_quantity}"
-               onclick="selectProduct(this.dataset.pid,this.dataset.pname,this.dataset.pprice,this.dataset.pstock)">
-            <div>
+      ? list.map(p => {
+          const pname = (p.name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+          const priceBtn = (label, price) => `
+            <button class="btn btn-sm btn-outline-secondary flex-fill py-1" style="font-size:.72rem;line-height:1.3"
+              onclick="selectProduct(${p.id},'${pname.replace(/'/g,"\\'")}',${price || 0},${p.stock_quantity})">${label}<br>${fmt(price)}</button>`;
+          return `
+          <div class="py-2 px-1 border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
               <div class="fw-semibold small">${p.name}${p.is_low_stock ? ' <span class="badge-s s-취소" style="font-size:.65rem">부족</span>' : ''}</div>
-              <div class="text-muted" style="font-size:.75rem">품번 ${p.code || '-'}${p.old_code ? ` · 기존품번 ${p.old_code}` : ''}</div>
+              <div class="text-muted small">재고 ${p.stock_quantity}개</div>
             </div>
-            <div class="text-end small">
-              <div>재고 ${p.stock_quantity}개</div>
-              <div class="text-muted">${fmt(p.unit_price)}</div>
+            <div class="text-muted mb-1" style="font-size:.75rem">품번 ${p.code || '-'}${p.old_code ? ` · 기존품번 ${p.old_code}` : ''}</div>
+            <div class="d-flex gap-1">
+              ${priceBtn('대리점가', p.dealer_price)}
+              ${priceBtn('센터가', p.center_price)}
+              ${priceBtn('소비자가', p.consumer_price)}
             </div>
-          </div>`).join('')
+          </div>`; }).join('')
       : '<div class="text-center text-muted py-3 small">검색 결과 없음</div>';
   } catch (e) {}
 }
@@ -1616,7 +1620,7 @@ function selectProduct(id, name, unitPrice, stock) {
     row.querySelector('[name=product_id]').value = product.id;
     row.querySelector('[name=model_name]').value = product.name;
     const priceInput = row.querySelector('[name=unit_price]');
-    if (!parseFloat(priceInput.value)) priceInput.value = product.unit_price;
+    priceInput.value = product.unit_price;
     calcEstimateRow(priceInput);
   } else if (_productPickerContext === 'maintenance-part') {
     document.getElementById('md-part-product-id').value = product.id;
