@@ -23,6 +23,14 @@ class MaintenancePart:
 
 
 @dataclass
+class MaintenancePhoto:
+    content_type: str
+    id: Optional[int] = None
+    maintenance_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+@dataclass
 class Payment:
     amount: float
     payment_date: datetime
@@ -47,6 +55,7 @@ class MaintenanceOrder:
     id: Optional[int] = None
     parts: List[MaintenancePart] = field(default_factory=list)
     payments: List[Payment] = field(default_factory=list)
+    photos: List[MaintenancePhoto] = field(default_factory=list)
 
     def transition(self, new_status: str):
         allowed = _TRANSITIONS.get(self.status, set())

@@ -7,7 +7,7 @@ from app.domain.customer.entity import Customer
 from app.domain.customer.repository import ICustomerRepository
 from app.domain.sale.entity import Sale, SaleItem
 from app.domain.sale.repository import ISaleRepository
-from app.domain.maintenance.entity import MaintenanceOrder, MaintenancePart, Payment
+from app.domain.maintenance.entity import MaintenanceOrder, MaintenancePart, Payment, MaintenancePhoto
 from app.domain.maintenance.repository import IMaintenanceRepository
 from app.domain.product.entity import Product
 from app.domain.product.repository import IProductRepository
@@ -25,6 +25,7 @@ from app.infrastructure.database.orm import (
     MaintenanceOrder as ORM_Maintenance,
     MaintenancePart as ORM_Part,
     Payment as ORM_Payment,
+    MaintenancePhoto as ORM_Photo,
     Product as ORM_Product,
     StockMovement as ORM_StockMovement,
     CompanySettings as ORM_Settings,
@@ -69,6 +70,10 @@ def _m_maintenance(o: ORM_Maintenance) -> MaintenanceOrder:
             id=p.id, maintenance_id=p.maintenance_id,
             amount=p.amount, payment_date=p.payment_date, memo=p.memo,
         ) for p in o.payments],
+        photos=[MaintenancePhoto(
+            id=p.id, maintenance_id=p.maintenance_id,
+            content_type=p.content_type, created_at=p.created_at,
+        ) for p in o.photos],
     )
 
 def _m_settings(o: ORM_Settings) -> CompanySettings:
@@ -345,6 +350,21 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
     def delete_payments(self, maintenance_id: int) -> None:
         self.db.query(ORM_Payment).filter(ORM_Payment.maintenance_id == maintenance_id).delete()
         self.db.flush()
+
+    def add_photo(self, maintenance_id: int, content_type: str, image_data: bytes) -> dict:
+        p = ORM_Photo(maintenance_id=maintenance_id, content_type=content_type, image_data=image_data)
+        self.db.add(p)
+        self.db.flush()
+        return {"id": p.id, "content_type": p.content_type, "created_at": p.created_at.isoformat()}
+
+    def delete_photo(self, photo_id: int) -> None:
+        p = self.db.query(ORM_Photo).filter(ORM_Photo.id == photo_id).first()
+        if p:
+            self.db.delete(p)
+
+    def get_photo(self, photo_id: int) -> Optional[tuple]:
+        p = self.db.query(ORM_Photo).filter(ORM_Photo.id == photo_id).first()
+        return (p.content_type, p.image_data) if p else None
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────

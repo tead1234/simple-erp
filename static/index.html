@@ -851,6 +851,20 @@
 
         <hr class="my-2">
 
+        <!-- 사진 -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-semibold small">사진 (최대 4장)</span>
+            <button id="md-photo-add-btn" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('md-photo-input').click()">
+              <i class="bi bi-camera"></i> 사진 추가
+            </button>
+            <input type="file" id="md-photo-input" accept="image/*" style="display:none" onchange="uploadMaintenancePhoto(this)">
+          </div>
+          <div id="md-photos" class="d-flex flex-wrap gap-2"></div>
+        </div>
+
+        <hr class="my-2">
+
         <!-- 사용 부품 -->
         <div class="mb-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -894,6 +908,9 @@
 
       </div>
       <div class="modal-footer" style="background:#f0fdf4;border-top:1px solid var(--border)">
+        <button id="md-btn-print" class="btn btn-sm btn-outline-primary me-auto" style="display:none" onclick="printMaintenance()">
+          <i class="bi bi-printer"></i> 내역서 출력
+        </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">닫기</button>
       </div>
     </div>
@@ -1736,6 +1753,19 @@ function renderMaintenanceDetail(m) {
   document.getElementById('md-btn-완료').style.display   = s === '작업중' ? '' : 'none';
   document.getElementById('md-btn-출고').style.display   = s === '완료' ? '' : 'none';
   document.getElementById('md-btn-취소').style.display   = s === '취소' ? 'none' : '';
+  document.getElementById('md-btn-print').style.display  = (s === '완료' || s === '출고') ? '' : 'none';
+
+  // 사진
+  const photosLocked = s === '완료' || s === '출고';
+  document.getElementById('md-photo-add-btn').style.display = (photosLocked || (m.photos?.length || 0) >= 4) ? 'none' : '';
+  document.getElementById('md-photos').innerHTML = m.photos?.length
+    ? m.photos.map(p => `
+      <div class="position-relative">
+        <img src="/api/maintenance/${m.id}/photos/${p.id}" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0">
+        ${photosLocked ? '' : `<button class="btn btn-sm btn-danger position-absolute top-0 end-0 py-0 px-1" style="font-size:.65rem;transform:translate(30%,-30%)"
+            onclick="deleteMaintenancePhoto(${p.id})"><i class="bi bi-x"></i></button>`}
+      </div>`).join('')
+    : '<div class="text-muted small py-2">첨부된 사진이 없습니다</div>';
 
   // 부품 (견적 연결 여부에 따라 수동 편집 UI 제어)
   const linkedEstimate = !!m.estimate_id;
@@ -1862,6 +1892,39 @@ async function addMaintenancePayment() {
     renderMaintenanceDetail(m);
     loadMaintenance();
   } catch (e) { toast(e.message, false); }
+}
+
+async function uploadMaintenancePhoto(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch(`/api/maintenance/${_currentMaintenance.id}/photos`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({detail: '오류가 발생했습니다'}));
+      throw new Error(err.detail || '오류가 발생했습니다');
+    }
+    const m = await api('GET', `/api/maintenance/${_currentMaintenance.id}`);
+    _currentMaintenance = m;
+    renderMaintenanceDetail(m);
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteMaintenancePhoto(photoId) {
+  if (!confirm('이 사진을 삭제하시겠습니까?')) return;
+  try {
+    await api('DELETE', `/api/maintenance/${_currentMaintenance.id}/photos/${photoId}`);
+    const m = await api('GET', `/api/maintenance/${_currentMaintenance.id}`);
+    _currentMaintenance = m;
+    renderMaintenanceDetail(m);
+  } catch (e) { toast(e.message, false); }
+}
+
+function printMaintenance() {
+  if (!_currentMaintenance) return;
+  window.open(`/static/print_maintenance.html?id=${_currentMaintenance.id}`, '_blank');
 }
 
 // ─── Settings ─────────────────────────────────────────────────────

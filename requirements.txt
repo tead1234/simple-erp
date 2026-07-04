@@ -4,3 +4,4 @@ sqlalchemy
 python-dotenv
 python-multipart
 openpyxl
+Pillow

@@ -1,6 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, Boolean
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, Boolean, LargeBinary
+from sqlalchemy.orm import relationship, declarative_base, deferred
 
 Base = declarative_base()
 
@@ -139,6 +139,7 @@ class MaintenanceOrder(Base):
     estimate = relationship("Estimate", back_populates="maintenance_orders")
     parts = relationship("MaintenancePart", back_populates="maintenance", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="maintenance", cascade="all, delete-orphan")
+    photos = relationship("MaintenancePhoto", back_populates="maintenance", cascade="all, delete-orphan")
 
 
 class MaintenancePart(Base):
@@ -162,6 +163,16 @@ class Payment(Base):
     memo = Column(String(200))
     created_at = Column(DateTime, default=datetime.now)
     maintenance = relationship("MaintenanceOrder", back_populates="payments")
+
+
+class MaintenancePhoto(Base):
+    __tablename__ = "maintenance_photos"
+    id = Column(Integer, primary_key=True)
+    maintenance_id = Column(Integer, ForeignKey("maintenance_orders.id"), nullable=False)
+    content_type = Column(String(50), nullable=False)
+    image_data = deferred(Column(LargeBinary, nullable=False))
+    created_at = Column(DateTime, default=datetime.now)
+    maintenance = relationship("MaintenanceOrder", back_populates="photos")
 
 
 class FieldTrip(Base):

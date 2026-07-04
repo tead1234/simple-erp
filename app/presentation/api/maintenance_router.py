@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
@@ -8,6 +9,8 @@ from app.domain.maintenance.entity import VALID_STATUSES
 from app.infrastructure.database.session import get_db
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
+
+MAX_PHOTO_UPLOAD_SIZE = 10 * 1024 * 1024
 
 
 class MaintenanceIn(BaseModel):
@@ -128,6 +131,31 @@ def add_payment(order_id: int, data: PaymentIn, svc: MaintenanceService = Depend
     result = svc.add_payment(order_id, data.amount, data.payment_date, data.memo)
     db.commit()
     return result
+
+
+@router.post("/{order_id}/photos", status_code=201)
+async def add_photo(order_id: int, file: UploadFile = File(...),
+                     svc: MaintenanceService = Depends(get_maintenance_service), db: Session = Depends(get_db)):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(400, "이미지 파일만 업로드할 수 있습니다")
+    raw = await file.read()
+    if len(raw) > MAX_PHOTO_UPLOAD_SIZE:
+        raise HTTPException(400, "이미지 용량은 10MB를 초과할 수 없습니다")
+    result = svc.add_photo(order_id, file.content_type, raw)
+    db.commit()
+    return result
+
+
+@router.get("/{order_id}/photos/{photo_id}")
+def get_photo(order_id: int, photo_id: int, svc: MaintenanceService = Depends(get_maintenance_service)):
+    content_type, image_data = svc.get_photo(photo_id)
+    return Response(content=image_data, media_type=content_type)
+
+
+@router.delete("/{order_id}/photos/{photo_id}", status_code=204)
+def delete_photo(order_id: int, photo_id: int, svc: MaintenanceService = Depends(get_maintenance_service), db: Session = Depends(get_db)):
+    svc.delete_photo(order_id, photo_id)
+    db.commit()
 
 
 @router.post("/{order_id}/cancel")

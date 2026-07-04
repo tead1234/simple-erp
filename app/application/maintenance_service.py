@@ -1,6 +1,8 @@
+import io
 from datetime import datetime
 from typing import Optional, List
 from fastapi import Depends, HTTPException
+from PIL import Image
 from app.domain.maintenance.entity import MaintenanceOrder, VALID_STATUSES
 from app.domain.maintenance.repository import IMaintenanceRepository
 from app.domain.customer.repository import ICustomerRepository
@@ -10,6 +12,11 @@ from app.infrastructure.database.repositories import (
     get_maintenance_repo, get_customer_repo, get_estimate_repo, get_product_repo,
 )
 from app.application.customer_service import CustomerService
+
+
+MAX_PHOTOS_PER_ORDER = 4
+MAX_PHOTO_DIMENSION = 1600
+JPEG_QUALITY = 85
 
 
 class MaintenanceService:
@@ -77,6 +84,10 @@ class MaintenanceService:
                 {"id": p.id, "amount": p.amount,
                  "payment_date": p.payment_date.isoformat(), "memo": p.memo}
                 for p in order.payments
+            ],
+            "photos": [
+                {"id": p.id, "created_at": p.created_at.isoformat() if p.created_at else None}
+                for p in order.photos
             ],
         }
 
@@ -199,6 +210,38 @@ class MaintenanceService:
 
         self._repo.save(order)
         return {"id": order.id, "status": order.status}
+
+    def add_photo(self, order_id: int, content_type: str, raw_bytes: bytes) -> dict:
+        order = self._repo.get(order_id)
+        if not order:
+            raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
+        if order.status in ("완료", "출고"):
+            raise HTTPException(400, "완료·출고된 정비는 사진을 추가할 수 없습니다")
+        if len(order.photos) >= MAX_PHOTOS_PER_ORDER:
+            raise HTTPException(400, f"사진은 최대 {MAX_PHOTOS_PER_ORDER}장까지 첨부할 수 있습니다")
+        try:
+            image = Image.open(io.BytesIO(raw_bytes))
+            image = image.convert("RGB")
+        except Exception:
+            raise HTTPException(400, "올바른 이미지 파일이 아닙니다")
+        image.thumbnail((MAX_PHOTO_DIMENSION, MAX_PHOTO_DIMENSION))
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG", quality=JPEG_QUALITY)
+        return self._repo.add_photo(order_id, "image/jpeg", buf.getvalue())
+
+    def delete_photo(self, order_id: int, photo_id: int) -> None:
+        order = self._repo.get(order_id)
+        if not order:
+            raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
+        if order.status in ("완료", "출고"):
+            raise HTTPException(400, "완료·출고된 정비는 사진을 삭제할 수 없습니다")
+        self._repo.delete_photo(photo_id)
+
+    def get_photo(self, photo_id: int) -> tuple:
+        result = self._repo.get_photo(photo_id)
+        if not result:
+            raise HTTPException(404, "사진을 찾을 수 없습니다")
+        return result
 
     def _stock_quantities(self, order: MaintenanceOrder) -> dict:
         needed: dict = {}

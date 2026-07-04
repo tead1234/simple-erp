@@ -220,6 +220,19 @@ def migrate():
     if cur.rowcount:
         print(f"OK maintenance_orders.status '접수' → '작업중' {cur.rowcount}건 변경")
 
+    if "maintenance_photos" not in existing_tables:
+        cur.execute("""
+            CREATE TABLE maintenance_photos (
+                id INTEGER PRIMARY KEY,
+                maintenance_id INTEGER NOT NULL REFERENCES maintenance_orders(id),
+                content_type VARCHAR(50) NOT NULL,
+                image_data BLOB NOT NULL,
+                created_at DATETIME
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS ix_maintenance_photos_maintenance_id ON maintenance_photos(maintenance_id)")
+        print("OK maintenance_photos 테이블 생성")
+
     # ── customers.is_active 컬럼 추가 (소프트 삭제용) ──────────────
 
     cur.execute("PRAGMA table_info(customers)")
