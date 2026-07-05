@@ -149,7 +149,10 @@ async def add_photo(order_id: int, file: UploadFile = File(...),
 @router.get("/{order_id}/photos/{photo_id}")
 def get_photo(order_id: int, photo_id: int, svc: MaintenanceService = Depends(get_maintenance_service)):
     content_type, image_data = svc.get_photo(photo_id)
-    return Response(content=image_data, media_type=content_type)
+    return Response(
+        content=image_data, media_type=content_type,
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
+    )
 
 
 @router.delete("/{order_id}/photos/{photo_id}", status_code=204)

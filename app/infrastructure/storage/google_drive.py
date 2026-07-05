@@ -1,5 +1,6 @@
 import io
 import os
+import threading
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -8,12 +9,13 @@ from googleapiclient.http import MediaIoBaseUpload
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
-_service = None
+# googleapiclient 서비스 객체는 스레드 세이프하지 않음(내부 http transport 공유 불가).
+# FastAPI 동기 라우트는 스레드풀에서 실행되므로 스레드별로 별도 서비스를 캐시한다.
+_local = threading.local()
 
 
 def _get_service():
-    global _service
-    if _service is None:
+    if getattr(_local, "service", None) is None:
         client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
         refresh_token = os.getenv("GOOGLE_OAUTH_REFRESH_TOKEN")
@@ -30,8 +32,8 @@ def _get_service():
             token_uri="https://oauth2.googleapis.com/token",
             scopes=SCOPES,
         )
-        _service = build("drive", "v3", credentials=credentials, cache_discovery=False)
-    return _service
+        _local.service = build("drive", "v3", credentials=credentials, cache_discovery=False)
+    return _local.service
 
 
 def _folder_id() -> str:
