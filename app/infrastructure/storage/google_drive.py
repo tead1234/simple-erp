@@ -3,6 +3,7 @@ import os
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
@@ -51,8 +52,17 @@ def upload(filename: str, content_type: str, data: bytes) -> str:
 
 
 def download(file_id: str) -> bytes:
-    return _get_service().files().get_media(fileId=file_id).execute()
+    try:
+        return _get_service().files().get_media(fileId=file_id).execute()
+    except HttpError as e:
+        if e.resp.status == 404:
+            raise FileNotFoundError(f"드라이브 파일을 찾을 수 없습니다: {file_id}") from e
+        raise
 
 
 def delete(file_id: str) -> None:
-    _get_service().files().delete(fileId=file_id).execute()
+    try:
+        _get_service().files().delete(fileId=file_id).execute()
+    except HttpError as e:
+        if e.resp.status != 404:
+            raise

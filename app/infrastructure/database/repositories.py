@@ -368,7 +368,12 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
 
     def get_photo(self, photo_id: int) -> Optional[tuple]:
         p = self.db.query(ORM_Photo).filter(ORM_Photo.id == photo_id).first()
-        return (p.content_type, google_drive.download(p.drive_file_id)) if p else None
+        if not p:
+            return None
+        try:
+            return (p.content_type, google_drive.download(p.drive_file_id))
+        except FileNotFoundError:
+            return None
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
