@@ -226,12 +226,38 @@ def migrate():
                 id INTEGER PRIMARY KEY,
                 maintenance_id INTEGER NOT NULL REFERENCES maintenance_orders(id),
                 content_type VARCHAR(50) NOT NULL,
-                image_data BLOB NOT NULL,
+                image_data BLOB,
+                drive_file_id VARCHAR(100),
                 created_at DATETIME
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS ix_maintenance_photos_maintenance_id ON maintenance_photos(maintenance_id)")
         print("OK maintenance_photos 테이블 생성")
+    else:
+        cur.execute("PRAGMA table_info(maintenance_photos)")
+        existing_photo_cols = {row[1] for row in cur.fetchall()}
+        if "drive_file_id" not in existing_photo_cols:
+            # 사진 저장소를 SQLite BLOB → 구글 드라이브로 전환. image_data는 NOT NULL이라
+            # 컬럼만 추가해서는 안 되고(신규 사진은 BLOB을 안 채움), 이 시점엔 저장된
+            # 사진이 없으므로(image_data 참조 코드 자체가 없어짐) 테이블을 재생성한다.
+            cur.execute("SELECT COUNT(*) FROM maintenance_photos")
+            if cur.fetchone()[0] == 0:
+                cur.execute("DROP TABLE maintenance_photos")
+                cur.execute("""
+                    CREATE TABLE maintenance_photos (
+                        id INTEGER PRIMARY KEY,
+                        maintenance_id INTEGER NOT NULL REFERENCES maintenance_orders(id),
+                        content_type VARCHAR(50) NOT NULL,
+                        image_data BLOB,
+                        drive_file_id VARCHAR(100),
+                        created_at DATETIME
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS ix_maintenance_photos_maintenance_id ON maintenance_photos(maintenance_id)")
+                print("OK maintenance_photos 테이블 재생성 (drive_file_id 추가)")
+            else:
+                cur.execute("ALTER TABLE maintenance_photos ADD COLUMN drive_file_id VARCHAR(100)")
+                print("OK maintenance_photos.drive_file_id 컬럼 추가 (기존 BLOB 사진은 이관되지 않음)")
 
     # ── customers.is_active 컬럼 추가 (소프트 삭제용) ──────────────
 

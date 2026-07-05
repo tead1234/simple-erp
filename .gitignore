@@ -72,6 +72,11 @@ db.sqlite3-journal
 backups/
 logs/
 
+# Google service account / OAuth client keys
+*service-account*.json
+decent-surf-*.json
+client_secret_*.json
+
 # Flask stuff:
 instance/
 .webassets-cache

@@ -170,7 +170,8 @@ class MaintenancePhoto(Base):
     id = Column(Integer, primary_key=True)
     maintenance_id = Column(Integer, ForeignKey("maintenance_orders.id"), nullable=False)
     content_type = Column(String(50), nullable=False)
-    image_data = deferred(Column(LargeBinary, nullable=False))
+    image_data = deferred(Column(LargeBinary, nullable=True))
+    drive_file_id = Column(String(100))
     created_at = Column(DateTime, default=datetime.now)
     maintenance = relationship("MaintenanceOrder", back_populates="photos")
 

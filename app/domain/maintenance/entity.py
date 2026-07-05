@@ -27,6 +27,7 @@ class MaintenancePhoto:
     content_type: str
     id: Optional[int] = None
     maintenance_id: Optional[int] = None
+    drive_file_id: Optional[str] = None
     created_at: Optional[datetime] = None
 
 

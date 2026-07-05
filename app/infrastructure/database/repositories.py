@@ -18,6 +18,7 @@ from app.domain.fieldtrip.repository import IFieldTripRepository
 from app.domain.estimate.entity import Estimate, EstimateItem
 from app.domain.estimate.repository import IEstimateRepository
 from app.infrastructure.database.session import get_db
+from app.infrastructure.storage import google_drive
 from app.infrastructure.database.orm import (
     Customer as ORM_Customer,
     Sale as ORM_Sale,
@@ -72,7 +73,7 @@ def _m_maintenance(o: ORM_Maintenance) -> MaintenanceOrder:
         ) for p in o.payments],
         photos=[MaintenancePhoto(
             id=p.id, maintenance_id=p.maintenance_id,
-            content_type=p.content_type, created_at=p.created_at,
+            content_type=p.content_type, drive_file_id=p.drive_file_id, created_at=p.created_at,
         ) for p in o.photos],
     )
 
@@ -352,7 +353,9 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
         self.db.flush()
 
     def add_photo(self, maintenance_id: int, content_type: str, image_data: bytes) -> dict:
-        p = ORM_Photo(maintenance_id=maintenance_id, content_type=content_type, image_data=image_data)
+        filename = f"maintenance_{maintenance_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        drive_file_id = google_drive.upload(filename, content_type, image_data)
+        p = ORM_Photo(maintenance_id=maintenance_id, content_type=content_type, drive_file_id=drive_file_id)
         self.db.add(p)
         self.db.flush()
         return {"id": p.id, "content_type": p.content_type, "created_at": p.created_at.isoformat()}
@@ -360,11 +363,12 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
     def delete_photo(self, photo_id: int) -> None:
         p = self.db.query(ORM_Photo).filter(ORM_Photo.id == photo_id).first()
         if p:
+            google_drive.delete(p.drive_file_id)
             self.db.delete(p)
 
     def get_photo(self, photo_id: int) -> Optional[tuple]:
         p = self.db.query(ORM_Photo).filter(ORM_Photo.id == photo_id).first()
-        return (p.content_type, p.image_data) if p else None
+        return (p.content_type, google_drive.download(p.drive_file_id)) if p else None
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
