@@ -24,6 +24,23 @@ def create_backup() -> Path:
     return backup_path
 
 
+def restore_backup(data: bytes) -> None:
+    """업로드된 sqlite DB 파일로 현재 DB를 교체 (교체 전 현재 DB는 안전 백업으로 남김).
+    업로드된 파일이 옛날 스키마(배포 전 백업)일 수 있어 교체 직후 migrate()로 스키마를 맞춘다."""
+    if not data.startswith(b"SQLite format 3\x00"):
+        raise ValueError("올바른 SQLite DB 파일이 아닙니다")
+    create_backup()
+    db_path = Path(engine.url.database)
+    tmp_path = Path(str(db_path) + ".upload")
+    tmp_path.write_bytes(data)
+    engine.dispose()
+    os.replace(tmp_path, db_path)
+    for suffix in ("-wal", "-shm"):
+        Path(str(db_path) + suffix).unlink(missing_ok=True)
+    from migrate import migrate
+    migrate()
+
+
 def create_diagnostics_zip() -> Path:
     """DB 백업 + 로그 파일을 압축한 진단용 zip 생성 (문제 발생 시 의뢰인이 받아서 전달하는 용도)."""
     BACKUP_DIR.mkdir(exist_ok=True)

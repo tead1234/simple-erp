@@ -558,6 +558,17 @@
             <a class="btn btn-outline-secondary btn-sm" href="/admin/diagnostics/download"><i class="bi bi-download me-1"></i>로그·DB 진단 파일 다운로드</a>
           </div>
         </div>
+
+        <div class="erp-card mt-3" style="max-width:580px">
+          <div class="erp-card-header">DB 복원</div>
+          <div class="erp-card-body">
+            <p class="small text-muted mb-2">백업받은 <code>.db</code> 파일로 현재 DB를 되돌립니다. <strong class="text-danger">현재 DB의 데이터는 교체 전 서버에 자동 백업되지만, 교체 이후 저장된 데이터는 사라집니다.</strong></p>
+            <div class="input-group input-group-sm" style="max-width:420px">
+              <input type="file" class="form-control" id="db-restore-file" accept=".db">
+              <button class="btn btn-outline-danger" onclick="restoreDbFile()"><i class="bi bi-upload me-1"></i>복원</button>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div><!-- /content-area -->
@@ -1979,6 +1990,24 @@ async function saveSettings() {
       bank_account:        document.getElementById('cfg-bank-account').value,
     });
     toast('설정이 저장되었습니다');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function restoreDbFile() {
+  const input = document.getElementById('db-restore-file');
+  const file = input.files[0];
+  if (!file) { toast('복원할 .db 파일을 선택하세요', false); return; }
+  if (!confirm('현재 DB를 이 파일 내용으로 완전히 교체합니다.\n(교체 전 현재 DB는 서버에 자동 백업되지만, 그 이후 저장된 데이터는 사라집니다)\n계속하시겠습니까?')) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch('/admin/diagnostics/restore', { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({detail:'복원에 실패했습니다'}));
+      throw new Error(err.detail || '복원에 실패했습니다');
+    }
+    toast('DB가 복원되었습니다. 페이지를 새로고침합니다');
+    setTimeout(() => location.reload(), 1000);
   } catch (e) { toast(e.message, false); }
 }
 

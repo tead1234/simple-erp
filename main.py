@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -13,7 +13,7 @@ load_dotenv()
 from app.infrastructure.database.session import init_db
 from migrate import migrate
 from app.infrastructure.logging.error_handlers import register_error_handlers
-from app.infrastructure.backup.db_backup import create_backup, create_diagnostics_zip
+from app.infrastructure.backup.db_backup import create_backup, create_diagnostics_zip, restore_backup
 from app.infrastructure.logging.logger import logger
 from app.presentation.api.customers_router import router as customers_router
 from app.presentation.api.sales_router import router as sales_router
@@ -66,3 +66,14 @@ def download_diagnostics():
     from fastapi.responses import FileResponse as FR
     path = create_diagnostics_zip()
     return FR(str(path), filename=path.name, media_type="application/zip")
+
+
+# 배포로 DB가 초기화됐을 때 백업 파일로 복구하기 위한 업로드
+@app.post("/admin/diagnostics/restore")
+async def restore_diagnostics(file: UploadFile = File(...)):
+    data = await file.read()
+    try:
+        restore_backup(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"status": "ok"}
