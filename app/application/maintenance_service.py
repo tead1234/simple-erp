@@ -272,17 +272,10 @@ class MaintenanceService:
 
     def _deduct_stock_for_parts(self, order: MaintenanceOrder) -> None:
         needed = self._stock_quantities(order)
-        if not needed:
-            return
-        products = {pid: self._product_repo.get(pid) for pid in needed}
-        insufficient = [
-            f"{products[pid].name if products[pid] else pid}(필요 {qty}, 재고 {products[pid].stock_quantity if products[pid] else 0})"
-            for pid, qty in needed.items() if not products[pid] or products[pid].stock_quantity < qty
-        ]
-        if insufficient:
-            raise HTTPException(400, f"재고가 부족하여 출고할 수 없습니다: {', '.join(insufficient)}")
         for pid, qty in needed.items():
-            product = products[pid]
+            product = self._product_repo.get(pid)
+            if not product:
+                continue
             product.stock_quantity -= qty
             self._product_repo.save(product)
             self._product_repo.add_movement(pid, "출고", qty, f"정비 #{order.id} 출고")
