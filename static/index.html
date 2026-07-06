@@ -824,6 +824,7 @@
           <button id="md-btn-완료"   class="btn btn-sm btn-outline-success" onclick="changeMaintenanceStatus('완료')">→ 완료</button>
           <button id="md-btn-출고"   class="btn btn-sm btn-outline-primary" onclick="changeMaintenanceStatus('출고')">→ 출고</button>
           <button id="md-btn-취소"   class="btn btn-sm btn-outline-danger ms-auto" onclick="cancelMaintenance()">정비 취소</button>
+          <button id="md-btn-삭제"   class="btn btn-sm btn-danger" onclick="deleteMaintenanceOrder()">삭제</button>
         </div>
 
         <hr class="my-2">
@@ -1822,6 +1823,24 @@ async function cancelMaintenance() {
     const m = await api('GET', `/api/maintenance/${_currentMaintenance.id}`);
     _currentMaintenance = m;
     renderMaintenanceDetail(m);
+    loadMaintenance();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteMaintenanceOrder() {
+  if (!_currentMaintenance) return;
+  const paid = _currentMaintenance.paid_amount || 0;
+  let confirmedRefund = false;
+  if (paid > 0) {
+    if (!confirm(`이미 ${fmt(paid)} 입금 내역이 있습니다. 환불 처리를 완료하셨습니까?\n확인을 누르면 입금 내역도 함께 삭제됩니다.`)) return;
+    confirmedRefund = true;
+  } else {
+    if (!confirm('이 정비를 완전히 삭제하시겠습니까? 연결된 견적서도 함께 삭제되며 되돌릴 수 없습니다.')) return;
+  }
+  try {
+    await api('DELETE', `/api/maintenance/${_currentMaintenance.id}`, { confirmed_refund: confirmedRefund });
+    toast('정비가 삭제되었습니다');
+    _maintenanceDetailModal.hide();
     loadMaintenance();
   } catch (e) { toast(e.message, false); }
 }
