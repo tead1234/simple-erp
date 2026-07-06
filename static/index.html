@@ -1630,6 +1630,7 @@ async function runProductPickerSearch() {
             </div>
             <div class="text-muted mb-1" style="font-size:.75rem">품번 ${p.code || '-'}${p.old_code ? ` · 기존품번 ${p.old_code}` : ''}</div>
             <div class="d-flex gap-1">
+              ${priceBtn('판매가', p.unit_price)}
               ${priceBtn('대리점가', p.dealer_price)}
               ${priceBtn('센터가', p.center_price)}
               ${priceBtn('소비자가', p.consumer_price)}
