@@ -166,3 +166,9 @@ def cancel_maintenance(order_id: int, data: CancelIn, svc: MaintenanceService = 
     result = svc.cancel(order_id, data.confirmed_refund)
     db.commit()
     return result
+
+
+@router.delete("/{order_id}", status_code=204)
+def delete_maintenance(order_id: int, data: CancelIn, svc: MaintenanceService = Depends(get_maintenance_service), db: Session = Depends(get_db)):
+    svc.delete_order(order_id, data.confirmed_refund)
+    db.commit()

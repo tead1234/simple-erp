@@ -211,6 +211,26 @@ class MaintenanceService:
         self._repo.save(order)
         return {"id": order.id, "status": order.status}
 
+    def delete_order(self, order_id: int, confirmed_refund: bool = False) -> None:
+        order = self._repo.get(order_id)
+        if not order:
+            raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
+
+        paid = round(sum(p.amount for p in order.payments), 2)
+        if paid > 0 and not confirmed_refund:
+            raise HTTPException(
+                409,
+                f"이미 {paid:,.0f}원의 입금 내역이 있습니다. 환불 처리를 완료한 뒤 다시 삭제해주세요.",
+            )
+
+        if order.released_date:
+            self._restore_stock_for_parts(order)
+
+        estimate_id = order.estimate_id
+        self._repo.delete(order_id)
+        if estimate_id:
+            self._estimate_repo.delete(estimate_id)
+
     def add_photo(self, order_id: int, content_type: str, raw_bytes: bytes) -> dict:
         order = self._repo.get(order_id)
         if not order:

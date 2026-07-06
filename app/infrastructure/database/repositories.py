@@ -329,6 +329,15 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
         if p:
             self.db.delete(p)
 
+    def delete(self, id: int) -> None:
+        o = self.db.query(ORM_Maintenance).filter(ORM_Maintenance.id == id).first()
+        if not o:
+            return
+        for photo in o.photos:
+            google_drive.delete(photo.drive_file_id)
+        self.db.delete(o)
+        self.db.flush()
+
     def find_by_estimate_id(self, estimate_id: int):
         o = self.db.query(ORM_Maintenance).filter(ORM_Maintenance.estimate_id == estimate_id).first()
         return _m_maintenance(o) if o else None
