@@ -123,12 +123,15 @@ class MaintenanceService:
             raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
 
         if status is not None and status != order.status:
+            previous_status = order.status
             try:
                 order.transition(status)
             except ValueError as e:
                 raise HTTPException(400, str(e))
             if status == "출고":
                 self._deduct_stock_for_parts(order)
+            elif previous_status == "출고":
+                self._restore_stock_for_parts(order, reason=f"정비 #{order.id} 출고취소 재고복구")
 
         if description is not None:
             if order.status in ("완료", "출고"):
@@ -151,6 +154,8 @@ class MaintenanceService:
             raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
         if order.estimate_id:
             raise HTTPException(400, "견적서와 연결된 정비의 수리물품은 견적서에서 수정하세요")
+        if order.status in ("완료", "출고"):
+            raise HTTPException(400, "완료·출고된 정비는 수리물품을 수정할 수 없습니다")
         product = self._product_repo.get(product_id)
         if not product:
             raise HTTPException(400, "재고상품을 찾을 수 없습니다")
@@ -166,6 +171,8 @@ class MaintenanceService:
             raise HTTPException(404, "정비 내역을 찾을 수 없습니다")
         if order.estimate_id:
             raise HTTPException(400, "견적서와 연결된 정비의 수리물품은 견적서에서 수정하세요")
+        if order.status in ("완료", "출고"):
+            raise HTTPException(400, "완료·출고된 정비는 수리물품을 수정할 수 없습니다")
         self._repo.delete_part(part_id)
 
     def add_payment(self, order_id: int, amount: float, payment_date: str, memo: Optional[str]) -> dict:
@@ -280,15 +287,16 @@ class MaintenanceService:
             self._product_repo.save(product)
             self._product_repo.add_movement(pid, "출고", qty, f"정비 #{order.id} 출고")
 
-    def _restore_stock_for_parts(self, order: MaintenanceOrder) -> None:
+    def _restore_stock_for_parts(self, order: MaintenanceOrder, reason: str = None) -> None:
         needed = self._stock_quantities(order)
+        reason = reason or f"정비 #{order.id} 취소 재고복구"
         for pid, qty in needed.items():
             product = self._product_repo.get(pid)
             if not product:
                 continue
             product.stock_quantity += qty
             self._product_repo.save(product)
-            self._product_repo.add_movement(pid, "입고", qty, f"정비 #{order.id} 취소 재고복구")
+            self._product_repo.add_movement(pid, "입고", qty, reason)
 
 
 def get_maintenance_service(

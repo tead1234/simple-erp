@@ -4,8 +4,8 @@ from typing import Optional, List
 
 _TRANSITIONS = {
     "작업중": {"완료"},
-    "완료": {"출고"},
-    "출고": set(),
+    "완료": {"출고", "작업중"},
+    "출고": {"완료"},
 }
 CANCELLABLE_STATUSES = {"작업중", "완료", "출고"}
 VALID_STATUSES = set(_TRANSITIONS.keys()) | {"취소"}
@@ -66,10 +66,14 @@ class MaintenanceOrder:
                 f"가능: {', '.join(allowed) or '없음'}"
             )
         self.status = new_status
-        if new_status == "완료" and not self.completed_date:
-            self.completed_date = datetime.now()
-        if new_status == "출고" and not self.released_date:
-            self.released_date = datetime.now()
+        if new_status == "완료":
+            self.completed_date = self.completed_date or datetime.now()
+            self.released_date = None  # 출고에서 되돌아온 경우 초기화
+        elif new_status == "출고":
+            self.released_date = self.released_date or datetime.now()
+        elif new_status == "작업중":
+            self.completed_date = None
+            self.released_date = None
 
     def cancel(self):
         if self.status not in CANCELLABLE_STATUSES:

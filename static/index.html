@@ -834,6 +834,8 @@
           <span class="small text-muted me-1">상태 변경:</span>
           <button id="md-btn-완료"   class="btn btn-sm btn-outline-success" onclick="changeMaintenanceStatus('완료')">→ 완료</button>
           <button id="md-btn-출고"   class="btn btn-sm btn-outline-primary" onclick="changeMaintenanceStatus('출고')">→ 출고</button>
+          <button id="md-btn-되돌리기-작업중" class="btn btn-sm btn-outline-secondary" onclick="revertMaintenanceStatus('작업중')">← 작업중으로</button>
+          <button id="md-btn-되돌리기-완료"   class="btn btn-sm btn-outline-secondary" onclick="revertMaintenanceStatus('완료')">← 완료로</button>
           <button id="md-btn-취소"   class="btn btn-sm btn-outline-danger ms-auto" onclick="cancelMaintenance()">정비 취소</button>
           <button id="md-btn-삭제"   class="btn btn-sm btn-danger" onclick="deleteMaintenanceOrder()">삭제</button>
         </div>
@@ -1765,6 +1767,8 @@ function renderMaintenanceDetail(m) {
   const s = m.status;
   document.getElementById('md-btn-완료').style.display   = s === '작업중' ? '' : 'none';
   document.getElementById('md-btn-출고').style.display   = s === '완료' ? '' : 'none';
+  document.getElementById('md-btn-되돌리기-작업중').style.display = s === '완료' ? '' : 'none';
+  document.getElementById('md-btn-되돌리기-완료').style.display   = s === '출고' ? '' : 'none';
   document.getElementById('md-btn-취소').style.display   = s === '취소' ? 'none' : '';
   document.getElementById('md-btn-print').style.display  = (s === '완료' || s === '출고') ? '' : 'none';
 
@@ -1780,9 +1784,10 @@ function renderMaintenanceDetail(m) {
       </div>`).join('')
     : '<div class="text-muted small py-2">첨부된 사진이 없습니다</div>';
 
-  // 부품 (견적 연결 여부에 따라 수동 편집 UI 제어)
+  // 부품 (견적 연결 여부 + 완료/출고 잠금에 따라 수동 편집 UI 제어)
   const linkedEstimate = !!m.estimate_id;
-  document.getElementById('md-part-add-row').style.display = linkedEstimate ? 'none' : '';
+  const partsLocked = linkedEstimate || photosLocked;
+  document.getElementById('md-part-add-row').style.display = partsLocked ? 'none' : '';
   document.getElementById('md-parts-estimate-note').style.display = linkedEstimate ? '' : 'none';
   document.getElementById('md-amount-edit-row').style.display = linkedEstimate ? 'none' : '';
   const amountNote = document.getElementById('md-amount-estimate-note');
@@ -1793,7 +1798,7 @@ function renderMaintenanceDetail(m) {
         <td>${p.part_name}</td><td>${p.quantity}</td>
         <td class="text-end">${fmt(p.unit_price)}</td>
         <td class="text-end">${fmt(p.amount)}</td>
-        <td>${linkedEstimate ? '' : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.7rem"
+        <td>${partsLocked ? '' : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.7rem"
             onclick="deleteMaintenancePart(${p.id})">삭제</button>`}</td>
       </tr>`).join('')
     : '<tr><td colspan="5" class="text-center text-muted small py-2">없음</td></tr>';
@@ -1817,6 +1822,15 @@ async function changeMaintenanceStatus(newStatus) {
     renderMaintenanceDetail(m);
     loadMaintenance();
   } catch (e) { toast(e.message, false); }
+}
+
+async function revertMaintenanceStatus(newStatus) {
+  if (!_currentMaintenance) return;
+  const msg = newStatus === '완료'
+    ? '출고 이전으로 되돌리시겠습니까? 차감됐던 재고가 자동으로 복구됩니다.'
+    : '작업중으로 되돌리시겠습니까?';
+  if (!confirm(msg)) return;
+  await changeMaintenanceStatus(newStatus);
 }
 
 async function cancelMaintenance() {
