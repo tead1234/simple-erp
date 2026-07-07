@@ -328,6 +328,7 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
         p = self.db.query(ORM_Part).filter(ORM_Part.id == part_id).first()
         if p:
             self.db.delete(p)
+            self.db.flush()
 
     def delete(self, id: int) -> None:
         o = self.db.query(ORM_Maintenance).filter(ORM_Maintenance.id == id).first()
@@ -374,6 +375,7 @@ class SqlMaintenanceRepository(IMaintenanceRepository):
         if p:
             google_drive.delete(p.drive_file_id)
             self.db.delete(p)
+            self.db.flush()
 
     def get_photo(self, photo_id: int) -> Optional[tuple]:
         p = self.db.query(ORM_Photo).filter(ORM_Photo.id == photo_id).first()

@@ -163,7 +163,9 @@ class MaintenanceService:
             raise HTTPException(400, "수량은 1 이상이어야 합니다")
         if unit_price < 0:
             raise HTTPException(400, "단가는 0 이상이어야 합니다")
-        return self._repo.add_part(order_id, product.name, quantity, unit_price, product_id=product.id)
+        result = self._repo.add_part(order_id, product.name, quantity, unit_price, product_id=product.id)
+        self._recalc_total_amount(order_id)
+        return result
 
     def delete_part(self, order_id: int, part_id: int) -> None:
         order = self._repo.get(order_id)
@@ -174,6 +176,12 @@ class MaintenanceService:
         if order.status in ("완료", "출고"):
             raise HTTPException(400, "완료·출고된 정비는 수리물품을 수정할 수 없습니다")
         self._repo.delete_part(part_id)
+        self._recalc_total_amount(order_id)
+
+    def _recalc_total_amount(self, order_id: int) -> None:
+        order = self._repo.get(order_id)
+        order.total_amount = round(sum(p.amount for p in order.parts), 2)
+        self._repo.save(order)
 
     def add_payment(self, order_id: int, amount: float, payment_date: str, memo: Optional[str]) -> dict:
         order = self._repo.get(order_id)
