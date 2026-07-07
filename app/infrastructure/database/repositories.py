@@ -418,12 +418,20 @@ class DashboardQuery:
         from sqlalchemy import func, extract
         now = datetime.now()
 
-        monthly_revenue = self.db.query(func.sum(ORM_SaleItem.total_amount)).join(
+        monthly_sales_revenue = self.db.query(func.sum(ORM_SaleItem.total_amount)).join(
             ORM_Sale, ORM_Sale.id == ORM_SaleItem.sale_id
         ).filter(
             extract("year", ORM_Sale.sale_date) == now.year,
             extract("month", ORM_Sale.sale_date) == now.month,
         ).scalar() or 0
+
+        monthly_maintenance_revenue = self.db.query(func.sum(ORM_Maintenance.total_amount)).filter(
+            ORM_Maintenance.status.in_(["완료", "출고"]),
+            extract("year", ORM_Maintenance.completed_date) == now.year,
+            extract("month", ORM_Maintenance.completed_date) == now.month,
+        ).scalar() or 0
+
+        monthly_revenue = monthly_sales_revenue + monthly_maintenance_revenue
 
         active_maintenance = self.db.query(func.count(ORM_Maintenance.id)).filter(
             ORM_Maintenance.status == "작업중"
