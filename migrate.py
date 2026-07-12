@@ -267,6 +267,12 @@ def migrate():
         cur.execute("ALTER TABLE customers ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1")
         print("OK customers.is_active 컬럼 추가")
 
+    # ── customers.receivable_memo 컬럼 추가 (미수금 현황 메모용) ────
+
+    if "receivable_memo" not in existing_customer_cols:
+        cur.execute("ALTER TABLE customers ADD COLUMN receivable_memo TEXT")
+        print("OK customers.receivable_memo 컬럼 추가")
+
     conn.commit()
     conn.close()
     print("\n마이그레이션 완료.")

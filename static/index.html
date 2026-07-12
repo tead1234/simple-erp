@@ -331,9 +331,9 @@
               <div class="erp-card-header">미수금 현황</div>
               <div class="p-0 table-responsive">
                 <table class="erp-table">
-                  <thead><tr><th>고객명</th><th>미수금</th></tr></thead>
+                  <thead><tr><th>고객명</th><th>미수금</th><th>메모</th></tr></thead>
                   <tbody id="dash-receivable-list">
-                    <tr><td colspan="2" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                    <tr><td colspan="3" class="text-center text-muted py-4 small">데이터 없음</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1358,14 +1358,19 @@ async function loadDashboard() {
             </tr>`).join('')
         : '<tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
 
-    document.getElementById('dash-receivable-list').innerHTML =
-      d.top_receivables?.length
-        ? d.top_receivables.map(r => `
-            <tr>
-              <td>${r.customer_name}</td>
-              <td class="text-danger fw-semibold">${fmt(r.total_receivable)}</td>
-            </tr>`).join('')
-        : '<tr><td colspan="2" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+    if (!document.activeElement?.closest?.('#dash-receivable-list')) {
+      document.getElementById('dash-receivable-list').innerHTML =
+        d.top_receivables?.length
+          ? d.top_receivables.map(r => `
+              <tr>
+                <td>${r.customer_name}</td>
+                <td class="text-danger fw-semibold">${fmt(r.total_receivable)}</td>
+                <td><input type="text" class="form-control form-control-sm" style="font-size:.75rem"
+                     value="${(r.memo||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="메모"
+                     onchange="saveReceivableMemo(${r.customer_id}, this.value)"></td>
+              </tr>`).join('')
+          : '<tr><td colspan="3" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
+    }
 
     const lowItems = d.low_stock_items || [];
     const dashAlert = document.getElementById('dash-low-stock');
@@ -1377,6 +1382,13 @@ async function loadDashboard() {
       dashAlert.classList.add('d-none');
     }
   } catch (e) { console.error(e); }
+}
+
+async function saveReceivableMemo(customerId, memo) {
+  try {
+    await api('PATCH', `/api/customers/${customerId}/receivable-memo`, { memo });
+    toast('메모가 저장되었습니다');
+  } catch (e) { toast(e.message, false); }
 }
 
 function goToRevenueDetail() {

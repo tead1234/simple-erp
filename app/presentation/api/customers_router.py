@@ -49,6 +49,17 @@ def update_customer(customer_id: int, data: CustomerIn, svc: CustomerService = D
     return {"id": c.id, "name": c.name}
 
 
+class ReceivableMemoIn(BaseModel):
+    memo: Optional[str] = None
+
+
+@router.patch("/{customer_id}/receivable-memo")
+def update_receivable_memo(customer_id: int, data: ReceivableMemoIn, svc: CustomerService = Depends(get_customer_service), db: Session = Depends(get_db)):
+    svc.update_receivable_memo(customer_id, data.memo)
+    db.commit()
+    return {"id": customer_id}
+
+
 @router.delete("/{customer_id}", status_code=204)
 def delete_customer(customer_id: int, svc: CustomerService = Depends(get_customer_service), db: Session = Depends(get_db)):
     svc.delete(customer_id)

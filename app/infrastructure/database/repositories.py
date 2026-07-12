@@ -39,7 +39,8 @@ from app.infrastructure.database.orm import (
 # ── Mappers ───────────────────────────────────────────────────────────────────
 
 def _m_customer(o: ORM_Customer) -> Customer:
-    return Customer(id=o.id, name=o.name, phone=o.phone, address=o.address, memo=o.memo, is_active=o.is_active)
+    return Customer(id=o.id, name=o.name, phone=o.phone, address=o.address, memo=o.memo,
+                     receivable_memo=o.receivable_memo, is_active=o.is_active)
 
 def _m_sale_item(o: ORM_SaleItem) -> SaleItem:
     return SaleItem(
@@ -139,9 +140,11 @@ class SqlCustomerRepository(ICustomerRepository):
     def save(self, customer: Customer) -> Customer:
         if customer.id:
             o = self.db.query(ORM_Customer).filter(ORM_Customer.id == customer.id).first()
-            o.name, o.phone, o.address, o.memo = customer.name, customer.phone, customer.address, customer.memo
+            o.name, o.phone, o.address, o.memo, o.receivable_memo = \
+                customer.name, customer.phone, customer.address, customer.memo, customer.receivable_memo
         else:
-            o = ORM_Customer(name=customer.name, phone=customer.phone, address=customer.address, memo=customer.memo)
+            o = ORM_Customer(name=customer.name, phone=customer.phone, address=customer.address,
+                              memo=customer.memo, receivable_memo=customer.receivable_memo)
             self.db.add(o)
         self.db.flush()
         return _m_customer(o)
@@ -459,7 +462,11 @@ class DashboardQuery:
             if r > 0:
                 c = get_customer(o.customer_id)
                 if c:
-                    receivable_map[c.name] = receivable_map.get(c.name, 0) + r
+                    entry = receivable_map.setdefault(c.id, {
+                        "customer_id": c.id, "customer_name": c.name,
+                        "total_receivable": 0, "memo": c.receivable_memo,
+                    })
+                    entry["total_receivable"] += r
 
         recent = self.db.query(ORM_Maintenance).order_by(ORM_Maintenance.received_date.desc()).limit(5).all()
         recent_maintenance = []
@@ -485,7 +492,7 @@ class DashboardQuery:
             "upcoming_fieldtrips": upcoming_fieldtrips,
             "recent_maintenance": recent_maintenance,
             "top_receivables": sorted(
-                [{"customer_name": k, "total_receivable": v} for k, v in receivable_map.items()],
+                receivable_map.values(),
                 key=lambda x: x["total_receivable"], reverse=True
             )[:5],
             "low_stock_items": [{"id": p.id, "name": p.name, "stock_quantity": p.stock_quantity}

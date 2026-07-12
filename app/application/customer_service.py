@@ -25,6 +25,13 @@ class CustomerService:
         c.memo = memo
         return self._repo.save(c)
 
+    def update_receivable_memo(self, customer_id: int, memo: Optional[str]) -> Customer:
+        c = self._repo.get(customer_id)
+        if not c:
+            raise HTTPException(404, "고객을 찾을 수 없습니다")
+        c.receivable_memo = memo
+        return self._repo.save(c)
+
     def delete(self, customer_id: int) -> None:
         if not self._repo.get(customer_id):
             raise HTTPException(404, "고객을 찾을 수 없습니다")

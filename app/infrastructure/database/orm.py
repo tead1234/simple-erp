@@ -28,6 +28,7 @@ class Customer(Base):
     phone = Column(String(20))
     address = Column(String(200))
     memo = Column(Text)
+    receivable_memo = Column(Text)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
