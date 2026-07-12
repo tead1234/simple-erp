@@ -139,6 +139,8 @@
     .s-작업중,.s-진행중      { background:#fef9c3; color:#854d0e; }
     .s-출고                  { background:#ede9fe; color:#6b21a8; }
     .s-취소                  { background:#fee2e2; color:#991b1b; }
+    .s-판매                  { background:#ede9fe; color:#7c3aed; }
+    .s-정비                  { background:#fef9c3; color:#a16207; }
 
     /* ── Buttons ─────────────────────────────────── */
     .btn-purple {
@@ -188,6 +190,7 @@
       </ul>
       <div class="sidebar-section">영업</div>
       <ul class="nav flex-column">
+        <li><a class="nav-link" href="#" data-section="revenue"><i class="bi bi-graph-up"></i>매출내역</a></li>
         <li><a class="nav-link" href="#" data-section="estimates"><i class="bi bi-file-earmark-text"></i>견적서</a></li>
         <li><a class="nav-link" href="#" data-section="sales-implement"><i class="bi bi-cart3"></i>작업기 판매내역</a></li>
         <li><a class="nav-link" href="#" data-section="sales-tractor"><i class="bi bi-cart3"></i>트랙터 판매내역</a></li>
@@ -236,7 +239,7 @@
         <!-- Stat Cards -->
         <div class="row g-3 mb-4">
           <div class="col-6 col-md-3">
-            <div class="stat-card">
+            <div class="stat-card" style="cursor:pointer" onclick="goToRevenueDetail()" title="매출내역 보기">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="stat-label">이번달 매출</div>
@@ -335,6 +338,48 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════ 매출내역 -->
+      <div id="section-revenue" class="section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="fw-bold">매출내역</span>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="changeRevenueMonth(-1)"><i class="bi bi-chevron-left"></i></button>
+            <span class="fw-semibold" id="revenue-month-label" style="min-width:90px;text-align:center">-</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="changeRevenueMonth(1)"><i class="bi bi-chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-md-4">
+            <div class="stat-card">
+              <div class="stat-label">판매 매출</div>
+              <div class="stat-value" style="color:#7c3aed" id="revenue-sales-total">-</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="stat-card">
+              <div class="stat-label">정비 매출</div>
+              <div class="stat-value" style="color:#d97706" id="revenue-maintenance-total">-</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="stat-card">
+              <div class="stat-label">합계</div>
+              <div class="stat-value" style="color:var(--primary)" id="revenue-grand-total">-</div>
+            </div>
+          </div>
+        </div>
+        <div class="erp-card">
+          <div class="p-0 table-responsive">
+            <table class="erp-table">
+              <thead><tr><th>날짜</th><th>구분</th><th>고객명</th><th>내역</th><th>금액</th></tr></thead>
+              <tbody id="revenue-list">
+                <tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1258,7 +1303,7 @@ function toast(msg, ok = true) {
 
 // ─── Section routing ──────────────────────────────────────────────
 const SECTION_NAMES = {
-  dashboard:'대시보드', estimates:'견적서', 'sales-implement':'작업기 판매내역', 'sales-tractor':'트랙터 판매내역',
+  dashboard:'대시보드', revenue:'매출내역', estimates:'견적서', 'sales-implement':'작업기 판매내역', 'sales-tractor':'트랙터 판매내역',
   customers:'고객관리', maintenance:'정비관리', fieldtrip:'출장관리',
   inventory:'부품재고', settings:'설정',
 };
@@ -1273,6 +1318,7 @@ function switchSection(name) {
   document.getElementById('topbar-title').textContent = SECTION_NAMES[name] || name;
   clearInterval(_dashboardInterval);
   if (name === 'dashboard') { loadDashboard(); _dashboardInterval = setInterval(loadDashboard, 15000); }
+  if (name === 'revenue') loadRevenueDetail();
   if (name === 'estimates') loadEstimates();
   if (name === 'sales-implement') loadSales('작업기');
   if (name === 'sales-tractor') loadSales('트랙터');
@@ -1330,6 +1376,44 @@ async function loadDashboard() {
     } else {
       dashAlert.classList.add('d-none');
     }
+  } catch (e) { console.error(e); }
+}
+
+function goToRevenueDetail() {
+  const now = new Date();
+  _revenueYear = now.getFullYear();
+  _revenueMonth = now.getMonth() + 1;
+  switchSection('revenue');
+}
+
+// ─── Revenue detail ───────────────────────────────────────────────
+let _revenueYear = new Date().getFullYear();
+let _revenueMonth = new Date().getMonth() + 1;
+
+function changeRevenueMonth(delta) {
+  _revenueMonth += delta;
+  if (_revenueMonth < 1) { _revenueMonth = 12; _revenueYear--; }
+  if (_revenueMonth > 12) { _revenueMonth = 1; _revenueYear++; }
+  loadRevenueDetail();
+}
+
+async function loadRevenueDetail() {
+  try {
+    document.getElementById('revenue-month-label').textContent = `${_revenueYear}년 ${_revenueMonth}월`;
+    const d = await api('GET', `/api/dashboard/revenue-detail?year=${_revenueYear}&month=${_revenueMonth}`);
+    document.getElementById('revenue-sales-total').textContent = fmt(d.sales_total);
+    document.getElementById('revenue-maintenance-total').textContent = fmt(d.maintenance_total);
+    document.getElementById('revenue-grand-total').textContent = fmt(d.total);
+    document.getElementById('revenue-list').innerHTML = d.items?.length
+      ? d.items.map(i => `
+          <tr>
+            <td>${i.date?.slice(0,10) || '-'}</td>
+            <td>${badge(i.type)}</td>
+            <td class="fw-semibold">${i.customer_name || '-'}</td>
+            <td>${i.description || '-'}</td>
+            <td>${fmt(i.amount)}</td>
+          </tr>`).join('')
+      : '<tr><td colspan="5" class="text-center text-muted py-4 small">데이터 없음</td></tr>';
   } catch (e) { console.error(e); }
 }
 

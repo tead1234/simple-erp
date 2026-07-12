@@ -492,6 +492,66 @@ class DashboardQuery:
                                  for p in low_stock],
         }
 
+    def revenue_detail(self, year: int, month: int) -> dict:
+        from sqlalchemy import extract
+
+        customer_cache = {}
+
+        def get_customer_name(cid):
+            if cid not in customer_cache:
+                c = self.db.query(ORM_Customer).filter(ORM_Customer.id == cid).first()
+                customer_cache[cid] = c.name if c else "-"
+            return customer_cache[cid]
+
+        sales = self.db.query(ORM_Sale).filter(
+            extract("year", ORM_Sale.sale_date) == year,
+            extract("month", ORM_Sale.sale_date) == month,
+        ).all()
+
+        items = []
+        sales_total = 0
+        for s in sales:
+            total = sum(i.total_amount for i in s.items)
+            sales_total += total
+            summary = ", ".join(i.product_name for i in s.items if i.product_name)
+            items.append({
+                "date": s.sale_date.isoformat() if s.sale_date else None,
+                "type": "판매",
+                "customer_name": get_customer_name(s.customer_id),
+                "description": summary,
+                "amount": total,
+                "source_id": s.id,
+            })
+
+        maintenance_orders = self.db.query(ORM_Maintenance).filter(
+            ORM_Maintenance.status.in_(["완료", "출고"]),
+            extract("year", ORM_Maintenance.completed_date) == year,
+            extract("month", ORM_Maintenance.completed_date) == month,
+        ).all()
+
+        maintenance_total = 0
+        for o in maintenance_orders:
+            maintenance_total += o.total_amount or 0
+            items.append({
+                "date": o.completed_date.isoformat() if o.completed_date else None,
+                "type": "정비",
+                "customer_name": get_customer_name(o.customer_id),
+                "description": o.machine_type,
+                "amount": o.total_amount or 0,
+                "source_id": o.id,
+            })
+
+        items.sort(key=lambda x: x["date"] or "", reverse=True)
+
+        return {
+            "year": year,
+            "month": month,
+            "sales_total": sales_total,
+            "maintenance_total": maintenance_total,
+            "total": sales_total + maintenance_total,
+            "items": items,
+        }
+
 
 # ── FieldTrip ─────────────────────────────────────────────────────────────────
 

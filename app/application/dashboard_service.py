@@ -9,6 +9,9 @@ class DashboardService:
     def stats(self) -> dict:
         return self._query.stats()
 
+    def revenue_detail(self, year: int, month: int) -> dict:
+        return self._query.revenue_detail(year, month)
+
 
 def get_dashboard_service(query: DashboardQuery = Depends(get_dashboard_query)) -> DashboardService:
     return DashboardService(query)
