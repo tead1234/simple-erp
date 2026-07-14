@@ -27,7 +27,8 @@ class EstimateService:
             if not product:
                 raise HTTPException(400, f"재고상품을 찾을 수 없습니다 (id={item['product_id']})")
             amount = round(item["quantity"] * item["unit_price"], 2)
-            vat = round(amount * 0.1, 2)
+            vat_override = item.get("vat")
+            vat = round(vat_override, 2) if vat_override is not None else round(amount * 0.1, 2)
             est_items.append(EstimateItem(
                 product_id=product.id, model_name=product.name,
                 region=item.get("region"), spec=item.get("spec"), quantity=item["quantity"],

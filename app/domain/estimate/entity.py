@@ -19,6 +19,8 @@ class EstimateItem:
 
     @property
     def unit_price_with_vat(self) -> float:
+        if self.quantity:
+            return round((self.amount + self.vat) / self.quantity, 2)
         return round(self.unit_price * 1.1, 2)
 
 

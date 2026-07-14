@@ -15,6 +15,7 @@ class EstimateItemIn(BaseModel):
     spec: Optional[str] = None
     quantity: int = 1
     unit_price: float = 0
+    vat: Optional[float] = None
 
 
 class EstimateIn(BaseModel):

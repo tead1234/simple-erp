@@ -742,7 +742,7 @@
                 <th style="width:60px">수량</th>
                 <th style="width:120px">단가</th>
                 <th style="width:110px">금액</th>
-                <th style="width:100px">부가세(10%)</th>
+                <th style="width:100px">부가세</th>
                 <th style="width:32px"></th>
               </tr>
             </thead>
@@ -2412,6 +2412,7 @@ async function openEditEstimateModal() {
     row.querySelector('[name=unit_price]').value = i.unit_price;
     row.querySelector('[name=amount]').value = i.amount;
     row.querySelector('[name=vat]').value = i.vat;
+    if (Math.round(i.amount * 0.1) !== Math.round(i.vat)) row.dataset.vatManual = 'true';
   });
   updateEstimateTotals();
   _estimateDetailModal.hide();
@@ -2434,7 +2435,7 @@ function addEstimateItem() {
     <td><input type="number" class="form-control form-control-sm text-end" name="quantity" value="1" min="1" oninput="calcEstimateRow(this)"></td>
     <td><input type="number" class="form-control form-control-sm text-end" name="unit_price" value="0" min="0" oninput="calcEstimateRow(this)"></td>
     <td><input type="number" class="form-control form-control-sm text-end bg-light" name="amount" readonly></td>
-    <td><input type="number" class="form-control form-control-sm text-end bg-light" name="vat" readonly></td>
+    <td><input type="number" class="form-control form-control-sm text-end" name="vat" oninput="onVatInput(this)" title="자동 계산값(공급가액x10%)을 직접 수정할 수 있습니다"></td>
     <td><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="this.closest('tr').remove();updateEstimateTotals()"><i class="bi bi-trash3"></i></button></td>
   `;
   document.getElementById('est-items-body').appendChild(tr);
@@ -2446,7 +2447,14 @@ function calcEstimateRow(input) {
   const price = parseFloat(row.querySelector('[name=unit_price]').value) || 0;
   const amount = Math.round(qty * price);
   row.querySelector('[name=amount]').value = amount;
-  row.querySelector('[name=vat]').value = Math.round(amount * 0.1);
+  if (row.dataset.vatManual !== 'true') {
+    row.querySelector('[name=vat]').value = Math.round(amount * 0.1);
+  }
+  updateEstimateTotals();
+}
+
+function onVatInput(input) {
+  input.closest('tr').dataset.vatManual = 'true';
   updateEstimateTotals();
 }
 
@@ -2471,6 +2479,7 @@ async function saveEstimate() {
     spec: r.querySelector('[name=spec]').value,
     quantity: parseInt(r.querySelector('[name=quantity]').value) || 1,
     unit_price: parseFloat(r.querySelector('[name=unit_price]').value) || 0,
+    vat: parseFloat(r.querySelector('[name=vat]').value) || 0,
   })).filter(i => i.product_id);
   if (!items.length) { toast('재고상품을 선택하여 품목을 추가하세요', false); return; }
   const editId = document.getElementById('est-edit-id').value;
