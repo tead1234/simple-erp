@@ -1,0 +1,19 @@
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Optional
+from .entity import User, UserSession
+
+
+class IAuthRepository(ABC):
+    @abstractmethod
+    def get_user_by_username(self, username: str) -> Optional[User]: ...
+    @abstractmethod
+    def get_user(self, user_id: int) -> Optional[User]: ...
+    @abstractmethod
+    def update_password(self, user_id: int, password_hash: str) -> None: ...
+    @abstractmethod
+    def create_session(self, user_id: int, token: str, expires_at: datetime) -> None: ...
+    @abstractmethod
+    def get_session(self, token: str) -> Optional[UserSession]: ...
+    @abstractmethod
+    def delete_session(self, token: str) -> None: ...

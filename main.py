@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -15,6 +15,8 @@ from migrate import migrate
 from app.infrastructure.logging.error_handlers import register_error_handlers
 from app.infrastructure.backup.db_backup import create_backup, create_diagnostics_zip, restore_backup
 from app.infrastructure.logging.logger import logger
+from app.application.auth_service import require_login
+from app.presentation.api.auth_router import router as auth_router
 from app.presentation.api.customers_router import router as customers_router
 from app.presentation.api.sales_router import router as sales_router
 from app.presentation.api.maintenance_router import router as maintenance_router
@@ -44,14 +46,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="농기구 판매 ERP", lifespan=lifespan)
 register_error_handlers(app)
-app.include_router(customers_router)
-app.include_router(sales_router)
-app.include_router(maintenance_router)
-app.include_router(settings_router)
-app.include_router(dashboard_router)
-app.include_router(fieldtrip_router)
-app.include_router(inventory_router)
-app.include_router(estimate_router)
+_auth = [Depends(require_login)]
+app.include_router(auth_router)
+app.include_router(customers_router, dependencies=_auth)
+app.include_router(sales_router, dependencies=_auth)
+app.include_router(maintenance_router, dependencies=_auth)
+app.include_router(settings_router, dependencies=_auth)
+app.include_router(dashboard_router, dependencies=_auth)
+app.include_router(fieldtrip_router, dependencies=_auth)
+app.include_router(inventory_router, dependencies=_auth)
+app.include_router(estimate_router, dependencies=_auth)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -62,7 +66,7 @@ async def root():
 
 # 문제 발생 시 의뢰인이 로그+DB 덤프를 받아 전달할 수 있도록 하는 진단 다운로드
 @app.get("/admin/diagnostics/download")
-def download_diagnostics():
+def download_diagnostics(user=Depends(require_login)):
     from fastapi.responses import FileResponse as FR
     path = create_diagnostics_zip()
     return FR(str(path), filename=path.name, media_type="application/zip")
@@ -70,7 +74,7 @@ def download_diagnostics():
 
 # 배포로 DB가 초기화됐을 때 백업 파일로 복구하기 위한 업로드
 @app.post("/admin/diagnostics/restore")
-async def restore_diagnostics(file: UploadFile = File(...)):
+async def restore_diagnostics(file: UploadFile = File(...), user=Depends(require_login)):
     data = await file.read()
     try:
         restore_backup(data)

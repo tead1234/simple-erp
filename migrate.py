@@ -273,6 +273,43 @@ def migrate():
         cur.execute("ALTER TABLE customers ADD COLUMN receivable_memo TEXT")
         print("OK customers.receivable_memo 컬럼 추가")
 
+    # ── 로그인 기능: users / user_sessions 테이블 ────────────────
+
+    if "users" not in existing_tables:
+        cur.execute("""
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password_hash VARCHAR(100) NOT NULL,
+                created_at DATETIME,
+                updated_at DATETIME
+            )
+        """)
+        print("OK users 테이블 생성")
+
+    if "user_sessions" not in existing_tables:
+        cur.execute("""
+            CREATE TABLE user_sessions (
+                token VARCHAR(64) PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                created_at DATETIME,
+                expires_at DATETIME NOT NULL
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS ix_user_sessions_expires_at ON user_sessions(expires_at)")
+        print("OK user_sessions 테이블 생성")
+
+    cur.execute("SELECT COUNT(*) FROM users")
+    if cur.fetchone()[0] == 0:
+        import bcrypt
+        default_hash = bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode()
+        now = datetime.now().isoformat(sep=" ")
+        cur.execute(
+            "INSERT INTO users (username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            ("admin", default_hash, now, now),
+        )
+        print("OK 기본 관리자 계정(admin/password123) 등록")
+
     conn.commit()
     conn.close()
     print("\n마이그레이션 완료.")

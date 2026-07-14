@@ -17,6 +17,8 @@ from app.domain.fieldtrip.entity import FieldTrip
 from app.domain.fieldtrip.repository import IFieldTripRepository
 from app.domain.estimate.entity import Estimate, EstimateItem
 from app.domain.estimate.repository import IEstimateRepository
+from app.domain.auth.entity import User, UserSession
+from app.domain.auth.repository import IAuthRepository
 from app.infrastructure.database.session import get_db
 from app.infrastructure.storage import google_drive
 from app.infrastructure.database.orm import (
@@ -33,6 +35,8 @@ from app.infrastructure.database.orm import (
     FieldTrip as ORM_FieldTrip,
     Estimate as ORM_Estimate,
     EstimateItem as ORM_EstimateItem,
+    User as ORM_User,
+    UserSession as ORM_UserSession,
 )
 
 
@@ -662,6 +666,36 @@ class SqlEstimateRepository(IEstimateRepository):
             self.db.flush()
 
 
+class SqlAuthRepository(IAuthRepository):
+    def __init__(self, db: Session):
+        self.db = db
+
+    def get_user_by_username(self, username: str) -> Optional[User]:
+        o = self.db.query(ORM_User).filter(ORM_User.username == username).first()
+        return User(id=o.id, username=o.username, password_hash=o.password_hash) if o else None
+
+    def get_user(self, user_id: int) -> Optional[User]:
+        o = self.db.query(ORM_User).filter(ORM_User.id == user_id).first()
+        return User(id=o.id, username=o.username, password_hash=o.password_hash) if o else None
+
+    def update_password(self, user_id: int, password_hash: str) -> None:
+        o = self.db.query(ORM_User).filter(ORM_User.id == user_id).first()
+        if o:
+            o.password_hash = password_hash
+
+    def create_session(self, user_id: int, token: str, expires_at: datetime) -> None:
+        self.db.query(ORM_UserSession).filter(ORM_UserSession.expires_at < datetime.now()).delete()
+        self.db.add(ORM_UserSession(token=token, user_id=user_id, expires_at=expires_at))
+        self.db.flush()
+
+    def get_session(self, token: str) -> Optional[UserSession]:
+        o = self.db.query(ORM_UserSession).filter(ORM_UserSession.token == token).first()
+        return UserSession(token=o.token, user_id=o.user_id, expires_at=o.expires_at) if o else None
+
+    def delete_session(self, token: str) -> None:
+        self.db.query(ORM_UserSession).filter(ORM_UserSession.token == token).delete()
+
+
 # ── FastAPI DI 팩토리 ─────────────────────────────────────────────────────────
 
 def get_customer_repo(db: Session = Depends(get_db)) -> ICustomerRepository:
@@ -687,3 +721,6 @@ def get_dashboard_query(db: Session = Depends(get_db)) -> DashboardQuery:
 
 def get_estimate_repo(db: Session = Depends(get_db)) -> IEstimateRepository:
     return SqlEstimateRepository(db)
+
+def get_auth_repo(db: Session = Depends(get_db)) -> IAuthRepository:
+    return SqlAuthRepository(db)

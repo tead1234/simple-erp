@@ -176,6 +176,24 @@
   </style>
 </head>
 <body>
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:2000;background:var(--page-bg);align-items:center;justify-content:center">
+  <form id="login-form" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;box-shadow:0 8px 30px rgba(0,0,0,.12)" onsubmit="return doLogin(event)">
+    <div class="text-center mb-3">
+      <i class="bi bi-flower2" style="color:var(--primary);font-size:1.8rem"></i>
+      <div class="fw-bold mt-1" style="color:var(--primary)">진성농기계 ERP</div>
+    </div>
+    <div class="mb-2">
+      <label class="form-label small fw-semibold">아이디</label>
+      <input type="text" class="form-control form-control-sm" id="login-username" autocomplete="username" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">비밀번호</label>
+      <input type="password" class="form-control form-control-sm" id="login-password" autocomplete="current-password" required>
+    </div>
+    <div id="login-error" class="text-danger small mb-2"></div>
+    <button type="submit" class="btn btn-purple w-100 btn-sm">로그인</button>
+  </form>
+</div>
 <div class="d-flex">
 
   <!-- ════════════════ SIDEBAR ════════════════ -->
@@ -220,7 +238,13 @@
     <nav class="topbar d-md-none">
       <button class="btn btn-sm border-0" id="menu-btn"><i class="bi bi-list fs-5"></i></button>
       <span class="fw-bold" style="color:var(--primary)">진성농기계 ERP</span>
-      <span></span>
+      <div class="dropdown">
+        <button class="btn btn-sm border-0" type="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle fs-5"></i></button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal();return false;">비밀번호 변경</a></li>
+          <li><a class="dropdown-item text-danger" href="#" onclick="doLogout();return false;">로그아웃</a></li>
+        </ul>
+      </div>
     </nav>
 
     <!-- 데스크탑 상단바 -->
@@ -228,6 +252,15 @@
       <div>
         <div class="topbar-title" id="topbar-title">대시보드</div>
         <div class="topbar-date" id="topbar-date"></div>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="bi bi-person-circle me-1"></i><span id="topbar-username"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal();return false;">비밀번호 변경</a></li>
+          <li><a class="dropdown-item text-danger" href="#" onclick="doLogout();return false;">로그아웃</a></li>
+        </ul>
       </div>
     </div>
 
@@ -1257,6 +1290,39 @@
 
 
 <!-- ════════════════════════════════════════════════
+     MODAL: 비밀번호 변경
+════════════════════════════════════════════════ -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#f5f3ff;border-bottom:1px solid var(--border)">
+        <h6 class="modal-title fw-bold"><i class="bi bi-key me-2" style="color:var(--primary)"></i>비밀번호 변경</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">현재 비밀번호</label>
+          <input type="password" class="form-control form-control-sm" id="cp-current" autocomplete="current-password">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">새 비밀번호</label>
+          <input type="password" class="form-control form-control-sm" id="cp-new" autocomplete="new-password">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">새 비밀번호 확인</label>
+          <input type="password" class="form-control form-control-sm" id="cp-confirm" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="modal-footer" style="background:#f5f3ff;border-top:1px solid var(--border)">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn btn-sm btn-purple" onclick="saveChangePassword()">변경</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
      Toast
 ════════════════════════════════════════════════ -->
 <div id="toast-wrap" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
@@ -1271,12 +1337,84 @@ const api = async (method, url, body) => {
     headers: body ? {'Content-Type':'application/json'} : {},
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401 && url !== '/api/auth/login') {
+    showLoginOverlay();
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({detail:'오류가 발생했습니다'}));
     throw new Error(err.detail || '오류가 발생했습니다');
   }
   return res.status === 204 ? null : res.json();
 };
+
+// ─── 로그인 ───────────────────────────────────────────────────────
+let _appStarted = false;
+
+function showLoginOverlay() {
+  if (_dashboardInterval) { clearInterval(_dashboardInterval); _dashboardInterval = null; }
+  document.getElementById('login-overlay').style.display = 'flex';
+}
+
+function startApp() {
+  if (_appStarted) return;
+  _appStarted = true;
+  loadDashboard();
+  _dashboardInterval = setInterval(loadDashboard, 15000);
+}
+
+async function checkAuthAndInit() {
+  try {
+    const me = await api('GET', '/api/auth/me');
+    document.getElementById('topbar-username').textContent = me.username;
+    document.getElementById('login-overlay').style.display = 'none';
+    startApp();
+  } catch (e) {
+    showLoginOverlay();
+  }
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const res = await api('POST', '/api/auth/login', {username, password});
+    document.getElementById('login-password').value = '';
+    document.getElementById('topbar-username').textContent = res.username;
+    document.getElementById('login-overlay').style.display = 'none';
+    startApp();
+  } catch (err) {
+    errEl.textContent = err.message || '로그인에 실패했습니다';
+  }
+  return false;
+}
+
+async function doLogout() {
+  try { await api('POST', '/api/auth/logout'); } catch (e) {}
+  location.reload();
+}
+
+function openChangePasswordModal() {
+  document.getElementById('cp-current').value = '';
+  document.getElementById('cp-new').value = '';
+  document.getElementById('cp-confirm').value = '';
+  _changePasswordModal.show();
+}
+
+async function saveChangePassword() {
+  const current = document.getElementById('cp-current').value;
+  const next = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+  if (!current || !next) { toast('현재 비밀번호와 새 비밀번호를 입력하세요', false); return; }
+  if (next !== confirm) { toast('새 비밀번호가 일치하지 않습니다', false); return; }
+  try {
+    await api('POST', '/api/auth/change-password', {current_password: current, new_password: next});
+    _changePasswordModal.hide();
+    toast('비밀번호가 변경되었습니다');
+  } catch (e) { toast(e.message, false); }
+}
 
 const fmt = n => (n != null && n !== '') ? Math.round(n).toLocaleString('ko-KR') + '원' : '-';
 const today = () => new Date().toISOString().slice(0,10);
@@ -1431,7 +1569,7 @@ async function loadRevenueDetail() {
 
 // ─── Sale Modal ───────────────────────────────────────────────────
 let _saleModal, _repairModal, _customerModal, _customerPickerModal, _estimateModal, _estimateDetailModal;
-let _productPickerModal, _customerDetailModal;
+let _productPickerModal, _customerDetailModal, _changePasswordModal;
 let _pickerTarget = null;
 let _currentEstimate = null;
 
@@ -1444,13 +1582,13 @@ document.addEventListener('DOMContentLoaded', () => {
   _estimateDetailModal= new bootstrap.Modal(document.getElementById('estimateDetailModal'));
   _productPickerModal = new bootstrap.Modal(document.getElementById('productPickerModal'));
   _customerDetailModal= new bootstrap.Modal(document.getElementById('customerDetailModal'));
+  _changePasswordModal= new bootstrap.Modal(document.getElementById('changePasswordModal'));
 
   const d = new Date();
   document.getElementById('topbar-date').textContent =
     d.toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'short'});
 
-  loadDashboard();
-  _dashboardInterval = setInterval(loadDashboard, 15000);
+  checkAuthAndInit();
 });
 
 function openSaleModal(category) {
