@@ -99,3 +99,27 @@ def create_sale(data: SaleIn, svc: SaleService = Depends(get_sale_service), db: 
         return result
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@router.put("/{sale_id}")
+def update_sale(sale_id: int, data: SaleIn, svc: SaleService = Depends(get_sale_service), db: Session = Depends(get_db)):
+    try:
+        result = svc.update(
+            sale_id=sale_id,
+            sale_date=data.sale_date,
+            customer_name=data.customer_name,
+            customer_id=data.customer_id,
+            memo=data.memo,
+            machine_category=data.machine_category,
+            items=[i.model_dump() for i in data.items],
+        )
+        db.commit()
+        return result
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/{sale_id}", status_code=204)
+def delete_sale(sale_id: int, svc: SaleService = Depends(get_sale_service), db: Session = Depends(get_db)):
+    svc.delete(sale_id)
+    db.commit()

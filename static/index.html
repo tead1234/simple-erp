@@ -446,9 +446,9 @@
         <div class="erp-card">
           <div class="p-0 table-responsive">
             <table class="erp-table">
-              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th></tr></thead>
+              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th><th>관리</th></tr></thead>
               <tbody id="sales-implement-list">
-                <tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
           </div>
@@ -466,9 +466,9 @@
         <div class="erp-card">
           <div class="p-0 table-responsive">
             <table class="erp-table">
-              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th></tr></thead>
+              <thead><tr><th>판매일</th><th>고객명</th><th>품목</th><th>차대번호</th><th>총금액</th><th>자부담금</th><th>관리</th></tr></thead>
               <tbody id="sales-tractor-list">
-                <tr><td colspan="6" class="text-center text-muted py-4 small">데이터 없음</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4 small">데이터 없음</td></tr>
               </tbody>
             </table>
           </div>
@@ -661,10 +661,11 @@
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header" style="background:#f5f3ff;border-bottom:1px solid var(--border)">
-        <h6 class="modal-title fw-bold"><i class="bi bi-cart-plus me-2" style="color:var(--primary)"></i>농기구 판매 등록</h6>
+        <h6 class="modal-title fw-bold" id="sale-modal-title"><i class="bi bi-cart-plus me-2" style="color:var(--primary)"></i>농기구 판매 등록</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <input type="hidden" id="sale-edit-id">
         <!-- 기본 정보 -->
         <div class="row g-3 mb-4">
           <div class="col-md-3">
@@ -725,7 +726,7 @@
       </div>
       <div class="modal-footer" style="background:#f5f3ff;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
-        <button type="button" class="btn btn-sm btn-purple" onclick="saveSale()"><i class="bi bi-check-lg me-1"></i>판매 등록 완료</button>
+        <button type="button" class="btn btn-sm btn-purple" onclick="saveSale()" id="sale-save-btn"><i class="bi bi-check-lg me-1"></i>판매 등록 완료</button>
       </div>
     </div>
   </div>
@@ -1593,6 +1594,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function openSaleModal(category) {
   _saleModalCategory = category || '작업기';
+  document.getElementById('sale-modal-title').innerHTML = '<i class="bi bi-cart-plus me-2" style="color:var(--primary)"></i>농기구 판매 등록';
+  document.getElementById('sale-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>판매 등록 완료';
+  document.getElementById('sale-edit-id').value = '';
   document.getElementById('sale-date').value = today();
   document.getElementById('sale-customer-name').value = '';
   document.getElementById('sale-customer-id').value = '';
@@ -1602,6 +1606,48 @@ function openSaleModal(category) {
   updateSaleTotal();
   addSaleItem();
   _saleModal.show();
+}
+
+async function openEditSaleModal(id) {
+  try {
+    const s = await api('GET', `/api/sales/${id}`);
+    _saleModalCategory = s.machine_category || '작업기';
+    document.getElementById('sale-modal-title').innerHTML = '<i class="bi bi-cart-plus me-2" style="color:var(--primary)"></i>농기구 판매 수정';
+    document.getElementById('sale-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>수정 완료';
+    document.getElementById('sale-edit-id').value = s.id;
+    document.getElementById('sale-date').value = s.sale_date?.slice(0,10) || today();
+    document.getElementById('sale-customer-name').value = s.customer_name || '';
+    document.getElementById('sale-customer-id').value = s.customer_id || '';
+    document.getElementById('sale-memo').value = s.memo || '';
+    document.getElementById('sale-category').value = _saleModalCategory;
+    document.getElementById('sale-items-body').innerHTML = '';
+    (s.items || []).forEach(i => {
+      addSaleItem();
+      const rows = document.querySelectorAll('#sale-items-body tr');
+      const row = rows[rows.length - 1];
+      row.querySelector('[name=product_name]').value = i.product_name || '';
+      row.querySelector('[name=model_name]').value = i.model_name || '';
+      row.querySelector('[name=product_code]').value = i.product_code || '';
+      row.querySelector('[name=chassis_number]').value = i.chassis_number || '';
+      row.querySelector('[name=total_amount]').value = i.total_amount;
+      row.querySelector('[name=loan_amount]').value = i.loan_amount;
+      row.querySelector('[name=self_pay_amount]').value = i.self_pay_amount;
+      row.querySelector('[name=loan_code]').value = i.loan_code || '';
+      row.querySelector('[name=item_memo]').value = i.memo || '';
+    });
+    updateSaleTotal();
+    _saleModal.show();
+  } catch (e) { toast('판매 내역을 불러오지 못했습니다', false); }
+}
+
+async function deleteSale(id, category) {
+  if (!confirm('이 판매 내역을 삭제하시겠습니까?')) return;
+  try {
+    await api('DELETE', `/api/sales/${id}`);
+    toast('판매 내역이 삭제되었습니다');
+    loadDashboard();
+    loadSales(category);
+  } catch (e) { toast(e.message, false); }
 }
 
 function addSaleItem() {
@@ -1657,17 +1703,21 @@ async function saveSale() {
     memo:             r.querySelector('[name=item_memo]').value,
   }));
 
+  const editId = document.getElementById('sale-edit-id').value;
+  const body = {
+    sale_date: date,
+    customer_id: custId ? parseInt(custId) : null,
+    customer_name: custName,
+    memo: document.getElementById('sale-memo').value,
+    machine_category: document.getElementById('sale-category').value,
+    items,
+  };
   try {
-    const result = await api('POST', '/api/sales', {
-      sale_date: date,
-      customer_id: custId ? parseInt(custId) : null,
-      customer_name: custName,
-      memo: document.getElementById('sale-memo').value,
-      machine_category: document.getElementById('sale-category').value,
-      items,
-    });
+    editId
+      ? await api('PUT', `/api/sales/${editId}`, body)
+      : await api('POST', '/api/sales', body);
     _saleModal.hide();
-    toast('판매가 등록되었습니다');
+    toast(editId ? '판매 내역이 수정되었습니다' : '판매가 등록되었습니다');
     loadDashboard();
     loadSales(document.getElementById('sale-category').value);
   } catch (e) { toast(e.message, false); }
@@ -1925,8 +1975,12 @@ async function loadSales(category) {
             <td>${s.chassis_numbers || '-'}</td>
             <td>${fmt(s.total_amount)}</td>
             <td>${fmt(s.self_pay_amount)}</td>
+            <td class="text-nowrap">
+              <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem" onclick="openEditSaleModal(${s.id})">수정</button>
+              <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.75rem" onclick="deleteSale(${s.id},'${category}')">삭제</button>
+            </td>
           </tr>`).join('')
-      : `<tr><td colspan="6" class="text-center text-muted py-4 small">${q ? '검색 결과 없음' : '데이터 없음'}</td></tr>`;
+      : `<tr><td colspan="7" class="text-center text-muted py-4 small">${q ? '검색 결과 없음' : '데이터 없음'}</td></tr>`;
   } catch (e) {}
 }
 

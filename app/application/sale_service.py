@@ -42,8 +42,10 @@ class SaleService:
         return {
             "id": sale.id,
             "sale_date": sale.sale_date.isoformat() if sale.sale_date else None,
+            "customer_id": sale.customer_id,
             "customer_name": customer.name if customer else "-",
             "customer_phone": customer.phone if customer else None,
+            "machine_category": sale.machine_category,
             "memo": sale.memo,
             "items": [
                 {
@@ -60,6 +62,36 @@ class SaleService:
     def create(self, sale_date: str, customer_name: str, customer_id: Optional[int],
                memo: Optional[str], machine_category: Optional[str], items: list) -> dict:
         cid = self._customer_svc.get_or_create(customer_name, customer_id)
+        sale = self._sale_repo.save(Sale(
+            sale_date=datetime.fromisoformat(sale_date),
+            customer_id=cid,
+            memo=memo,
+            machine_category=machine_category,
+            items=self._build_items(items),
+        ))
+        return {"id": sale.id}
+
+    def update(self, sale_id: int, sale_date: str, customer_name: str, customer_id: Optional[int],
+               memo: Optional[str], machine_category: Optional[str], items: list) -> dict:
+        if not self._sale_repo.get(sale_id):
+            raise HTTPException(404, "판매 내역을 찾을 수 없습니다")
+        cid = self._customer_svc.get_or_create(customer_name, customer_id)
+        sale = self._sale_repo.update(Sale(
+            id=sale_id,
+            sale_date=datetime.fromisoformat(sale_date),
+            customer_id=cid,
+            memo=memo,
+            machine_category=machine_category,
+            items=self._build_items(items),
+        ))
+        return {"id": sale.id}
+
+    def delete(self, sale_id: int) -> None:
+        if not self._sale_repo.get(sale_id):
+            raise HTTPException(404, "판매 내역을 찾을 수 없습니다")
+        self._sale_repo.delete(sale_id)
+
+    def _build_items(self, items: list) -> List[SaleItem]:
         sale_items = []
         for item in items:
             self_pay = round(item["total_amount"] - item["loan_amount"], 2)
@@ -74,15 +106,7 @@ class SaleService:
                 loan_code=item.get("loan_code"),
                 memo=item.get("memo"),
             ))
-
-        sale = self._sale_repo.save(Sale(
-            sale_date=datetime.fromisoformat(sale_date),
-            customer_id=cid,
-            memo=memo,
-            machine_category=machine_category,
-            items=sale_items,
-        ))
-        return {"id": sale.id}
+        return sale_items
 
     def _get_customer_name(self, customer_id: int) -> str:
         c = self._customer_svc._repo.get(customer_id)

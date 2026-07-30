@@ -196,6 +196,33 @@ class SqlSaleRepository(ISaleRepository):
             ))
         return _m_sale(o)
 
+    def update(self, sale: Sale) -> Sale:
+        o = self.db.query(ORM_Sale).filter(ORM_Sale.id == sale.id).first()
+        o.sale_date = sale.sale_date
+        o.customer_id = sale.customer_id
+        o.machine_category = sale.machine_category
+        o.memo = sale.memo
+        for item in list(o.items):
+            self.db.delete(item)
+        self.db.flush()
+        for item in sale.items:
+            self.db.add(ORM_SaleItem(
+                sale_id=o.id, product_name=item.product_name, model_name=item.model_name,
+                product_code=item.product_code, chassis_number=item.chassis_number,
+                total_amount=item.total_amount,
+                loan_amount=item.loan_amount, self_pay_amount=item.self_pay_amount,
+                loan_code=item.loan_code, memo=item.memo,
+            ))
+        self.db.flush()
+        self.db.refresh(o)
+        return _m_sale(o)
+
+    def delete(self, id: int) -> None:
+        o = self.db.query(ORM_Sale).filter(ORM_Sale.id == id).first()
+        if o:
+            self.db.delete(o)
+            self.db.flush()
+
 
 # ── Product ───────────────────────────────────────────────────────────────────
 
